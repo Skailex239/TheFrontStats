@@ -28,16 +28,19 @@ jobs:
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           SYNC_HISTORY_WINDOWS: "500"
-      - name: Commit et push via API (standard)
+      - name: Commit et push (standard)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Fichiers de données + historique (nécessaires pour accumulation)
-          git add runs_public.json.gz runs.json.gz teams.json seen.json checkpoint.json
-          git commit -m "[auto] sync" || { echo "no changes standard"; exit 0; }
+          # Add files that exist (some may not exist on first sync after reset)
+          for f in runs_public.json.gz runs.json.gz teams.json seen.json checkpoint.json; do
+            [ -f "$f" ] && git add "$f"
+          done
+          git diff --cached --quiet && { echo "no changes standard"; exit 0; }
+          git commit -m "[auto] sync"
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
           if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
           echo "Pushing: $CHANGED"
@@ -61,16 +64,19 @@ jobs:
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           COMPACT_HISTORY_WINDOWS: "500"
-      - name: Commit et push via API (compact)
+      - name: Commit et push (compact)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Fichiers de données + historique (nécessaires pour accumulation)
-          git add runs_compact_public.json.gz runs_compact.json.gz seen_compact.json checkpoint_compact.json
-          git commit -m "[auto] sync compact" || { echo "no changes compact"; exit 0; }
+          # Add files that exist (some may not exist on first sync after reset)
+          for f in runs_compact_public.json.gz runs_compact.json.gz seen_compact.json checkpoint_compact.json; do
+            [ -f "$f" ] && git add "$f"
+          done
+          git diff --cached --quiet && { echo "no changes compact"; exit 0; }
+          git commit -m "[auto] sync compact"
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
           if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
           echo "Pushing: $CHANGED"

@@ -1,23 +1,23 @@
-# node_modules
 node_modules/
 .vite/
 .env
 dist/
 *.log
 
-# ─── Grosses données générées par sync.js / sync-compact.js ───
-# Ces fichiers sont créés localement par le sync et ne doivent JAMAIS
-# être commités. Seules les versions _public.json.gz sont servies au frontend.
+# ─── Données générées par sync.js / sync-compact.js ───
+# Fichiers BRUTS (non compressés) — trop gros, jamais commités
 runs.json
-runs.json.gz
+runs_compact.json
+
+# Backups — jamais commités
 runs_backup.json
 runs_backup.json.gz
 runs_backup_before_reset.json
 runs_backup_full_before_reset.json
-runs_compact.json
-runs_compact.json.gz
 runs_compact_backup.json
 runs_compact_backup.json.gz
+
+# Fichiers de suivi internes — jamais commités
 seen.json
 seen_backup_before_reset.json
 seen_compact.json
@@ -32,4 +32,3 @@ runs_compact_public.json
 # player_aliases.json brut — trop gros pour Git
 player_aliases.json
 verified_game_ids.json
-

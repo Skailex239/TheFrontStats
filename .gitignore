@@ -16,8 +16,7 @@ runs_backup_full_before_reset.json
 runs_compact_backup.json
 runs_compact_backup.json.gz
 
-# ─── Fichiers bruts de suivi — seul le .gz ou petit fichier est commité ───
-# seen.json et seen_compact.json sont commités (nécessaires pour l'accumulation)
+# ─── Fichiers de suivi obsolètes ───
 seen_backup_before_reset.json
 
 # ─── Public payload: raw JSON pas nécessaire, seul .gz est servi ───

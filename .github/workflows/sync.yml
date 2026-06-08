@@ -5,7 +5,6 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
-# ── Une seule sync à la fois, les nouvelles annulent les anciennes ──
 concurrency:
   group: auto-sync
   cancel-in-progress: true
@@ -36,7 +35,8 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add runs_public.json.gz runs.json.gz teams.json
+          # Fichiers de données + historique (nécessaires pour accumulation)
+          git add runs_public.json.gz runs.json.gz teams.json seen.json checkpoint.json
           git commit -m "[auto] sync" || { echo "no changes standard"; exit 0; }
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
           if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
@@ -68,14 +68,14 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add runs_compact_public.json.gz runs_compact.json.gz
+          # Fichiers de données + historique (nécessaires pour accumulation)
+          git add runs_compact_public.json.gz runs_compact.json.gz seen_compact.json checkpoint_compact.json
           git commit -m "[auto] sync compact" || { echo "no changes compact"; exit 0; }
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
           if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
           echo "Pushing: $CHANGED"
           python3 push_via_api.py "[auto] sync compact" $CHANGED
 
-  # ── Re-déclencheur après les 2 jobs ──
   retrigger:
     needs: [sync-standard, sync-compact]
     runs-on: ubuntu-latest

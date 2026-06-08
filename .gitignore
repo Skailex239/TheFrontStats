@@ -4,12 +4,11 @@ node_modules/
 dist/
 *.log
 
-# ─── Données générées par sync.js / sync-compact.js ───
-# Fichiers BRUTS (non compressés) — trop gros, jamais commités
+# ─── Données brutes (non compressées) — trop gros, jamais commités ───
 runs.json
 runs_compact.json
 
-# Backups — jamais commités
+# ─── Backups — jamais commités ───
 runs_backup.json
 runs_backup.json.gz
 runs_backup_before_reset.json
@@ -17,18 +16,14 @@ runs_backup_full_before_reset.json
 runs_compact_backup.json
 runs_compact_backup.json.gz
 
-# Fichiers de suivi internes — jamais commités
-seen.json
+# ─── Fichiers bruts de suivi — seul le .gz ou petit fichier est commité ───
+# seen.json et seen_compact.json sont commités (nécessaires pour l'accumulation)
 seen_backup_before_reset.json
-seen_compact.json
-checkpoint.json
-checkpoint_backup_before_reset.json
-checkpoint_compact.json
 
-# Public payload: raw JSON not needed in git, only .gz is served
+# ─── Public payload: raw JSON pas nécessaire, seul .gz est servi ───
 runs_public.json
 runs_compact_public.json
 
-# player_aliases.json brut — trop gros pour Git
+# ─── Autres gros fichiers ───
 player_aliases.json
 verified_game_ids.json

@@ -1,11 +1,14 @@
 name: Auto Sync
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
+
+# ── Une seule sync à la fois, les nouvelles annulent les anciennes ──
+concurrency:
+  group: auto-sync
+  cancel-in-progress: true
 
 jobs:
   sync-standard:
@@ -33,7 +36,6 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Commit les fichiers publics + le fichier complet gzippé (pour les profils)
           git add runs_public.json.gz runs.json.gz teams.json
           git commit -m "[auto] sync" || { echo "no changes standard"; exit 0; }
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
@@ -66,7 +68,6 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Commit les fichiers publics + le fichier complet gzippé (pour les profils)
           git add runs_compact_public.json.gz runs_compact.json.gz
           git commit -m "[auto] sync compact" || { echo "no changes compact"; exit 0; }
           CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
@@ -74,15 +75,16 @@ jobs:
           echo "Pushing: $CHANGED"
           python3 push_via_api.py "[auto] sync compact" $CHANGED
 
+  # ── Re-déclencheur après les 2 jobs ──
   retrigger:
     needs: [sync-standard, sync-compact]
     runs-on: ubuntu-latest
     permissions:
       actions: write
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     steps:
-      - name: Redeclencher dans 3 minutes
+      - name: Redeclencher dans 5 minutes
         run: |
-          sleep 180
+          sleep 300
           curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "Redeclenchement programme"
         shell: bash

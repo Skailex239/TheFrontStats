@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TheFrontStats — OpenFront Leaderboard</title>
+<meta name="description" content="Le leaderboard ultime pour OpenFront.io — Classements FFA, stats par carte et par joueur.">
+<meta property="og:title" content="TheFrontStats — OpenFront Leaderboard">
+<meta property="og:description" content="Le leaderboard ultime pour OpenFront.io">
+<meta property="og:image" content="https://skailex239.github.io/TheFrontStats/logo-128x128.png">
+<meta property="og:url" content="https://skailex239.github.io/TheFrontStats/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TheFrontStats — OpenFront Leaderboard">
+<meta name="twitter:description" content="Le leaderboard ultime pour OpenFront.io">
+<meta name="twitter:image" content="https://skailex239.github.io/TheFrontStats/logo-128x128.png">
+<!-- Performance: Preconnect to external domains -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://api.openfront.io">
+<link rel="dns-prefetch" href="https://corsproxy.io">
+
+<!-- Performance: Preload critical data -->
+<link rel="preload" href="runs_public.json.gz" as="fetch" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon-official.png">
+<link rel="icon" type="image/png" sizes="128x128" href="favicon-official.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-official.png">
+<link rel="stylesheet" href="styles.css?v=19">
+<link rel="stylesheet" href="auth.css?v=14">
+<link rel="stylesheet" href="animations.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="animations.css"></noscript>
+<link rel="stylesheet" href="toast.css">
+</head>
+<body>
+<div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar"></div></div>
+
+<div class="app">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+
+    <div class="logo">
+      <img src="logo.png" alt="TheFrontStats" loading="eager">
+
+    </div>
+
+    <nav>
+      <a class="nav-item tab-btn active" id="tab-btn-maps" onclick="switchTab('maps',this);document.getElementById('topbar-title').textContent='Tableau de bord'">
+        🏠 Tableau de bord
+      </a>
+      <a class="nav-item tab-btn" id="tab-btn-global" onclick="switchTab('global',this);document.getElementById('topbar-title').textContent='Classements'">
+        🏆 Classements
+      </a>
+      <a class="nav-item tab-btn" id="tab-btn-stats" onclick="switchTab('stats',this);document.getElementById('topbar-title').textContent='Statistiques'">
+        📊 Statistiques
+      </a>
+
+    </nav>
+
+    <!-- Profile / Auth -->
+    <div class="sidebar-profile">
+
+      <!-- Logged out -->
+      <div class="auth-zone" id="auth-zone">
+        <button class="login-btn login-btn-sidebar" onclick="toggleAuthModal()" id="login-btn-main">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Connexion</span>
+        </button>
+      </div>
+
+      <!-- Logged in (hidden by default) -->
+      <div class="user-container" id="user-container" style="display: none;">
+        <div class="user-badge" id="user-badge-btn" onclick="toggleUserDropdown(event)">
+          <div class="profile-avatar" id="sidebar-avatar">—</div>
+          <div class="profile-info">
+            <h4 id="user-display-name">—</h4>
+            <span>En ligne</span>
+          </div>
+          <svg class="chevron-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;color:var(--muted);flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="user-dropdown-menu" id="user-dropdown-menu">
+          <div class="dropdown-header">
+            <div class="dropdown-avatar" id="dropdown-avatar"></div>
+            <div class="dropdown-user-info">
+              <div class="dropdown-username" id="dropdown-username-display">—</div>
+              <div class="dropdown-publicid" id="dropdown-publicid-display">—</div>
+            </div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" onclick="goToProfilePage(event)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Mon profil</span>
+          </button>
+          <button class="dropdown-item logout" onclick="handleLogout(event)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Se déconnecter</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <main class="content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div>
+        <h1 id="topbar-title">Tableau de bord</h1>
+        <p id="topbar-subtitle">OpenFront Leaderboard</p>
+      </div>
+      <div class="topbar-right">
+        <div id="game-version" class="game-version"></div>
+        <div id="last-update" class="last-update-inline" style="margin:0;padding:0;font-size:12px"></div>
+      </div>
+    </header>
+
+    <!-- Server Info -->
+    <section class="server-info">
+      <h3 id="header-subtitle">Leaderboard FFA · 10+ joueurs · 400 bots · Standard</h3>
+      <p>LoadAmazonFR</p>
+      <div class="gamemode-switch" id="mode-selector">
+        <button class="mode-btn active" id="mode-btn-normal" onclick="switchMode('normal')">
+          <span class="mode-icon">🗺️</span> Normal
+        </button>
+        <button class="mode-btn" id="mode-btn-compact" onclick="switchMode('compact')">
+          <span class="mode-icon">⚡</span> Compact
+        </button>
+      </div>
+    </section>
+
+    <!-- Stats Cards -->
+    <section class="stats-grid">
+      <div class="card">
+        <h2 id="stat-runs">—</h2>
+        <p>Parties</p>
+        <div class="stat-icon">🏆</div>
+      </div>
+      <div class="card">
+        <h2 id="stat-maps">—</h2>
+        <p>Cartes</p>
+        <div class="stat-icon">🗺️</div>
+      </div>
+      <div class="card">
+        <h2 id="stat-players">—</h2>
+        <p>Joueurs</p>
+        <div class="stat-icon">👥</div>
+      </div>
+      <div class="card">
+        <h2 id="stat-best">—</h2>
+        <p>Meilleur temps</p>
+        <div class="stat-icon">⚡</div>
+      </div>
+    </section>
+
+    <!-- ═══ TAB: Maps / Tableau de bord ═══ -->
+    <div class="tab-content active" id="tab-maps">
+      <div class="search-bar">
+        <input type="text" id="player-search" class="search-input" placeholder="🔍 Rechercher un joueur..." oninput="searchPlayer()">
+      </div>
+      <div id="search-results"></div>
+
+      <section class="leaderboard">
+        <div class="maps">
+          <div class="panel-title">
+            Cartes
+            <span id="map-count-badge">—</span>
+          </div>
+          <input type="text" id="map-search" placeholder="Rechercher..." oninput="filterMaps()">
+          <div class="map-list" id="map-list">
+            <div class="loading">Chargement...</div>
+          </div>
+        </div>
+        <div class="records">
+          <div class="record-header">
+            <div>
+              <h2 id="content-title">Sélectionnez une carte</h2>
+              <span id="content-meta">—</span>
+            </div>
+            <button class="share-btn" id="share-btn" onclick="shareMap()" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Partager
+            </button>
+          </div>
+          <div class="leaderboard-body" id="leaderboard">
+            <div class="empty-state">
+              <h3>Bienvenue 👋</h3>
+              <p>Sélectionnez une carte dans la liste pour voir le classement des runs les plus rapides.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Feed -->
+      <section class="feed-section">
+        <div class="feed-card">
+          <div class="feed-header">⚡ Dernières victoires</div>
+          <div id="feed-list"><div class="loading">Chargement...</div></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ TAB: Global ═══ -->
+    <div class="tab-content" id="tab-global">
+      <div class="hof-cards" id="hof-list"></div>
+      <div class="feed-card" style="margin-bottom:20px">
+        <div class="feed-header">🌍 Classement mondial — 1er = 3pts · 2e = 2pts · 3e = 1pt</div>
+        <div id="global-list"><div class="loading">Chargement...</div></div>
+      </div>
+      <div class="feed-card">
+        <div class="feed-header">⚔️ Comparer deux joueurs</div>
+        <div style="padding:16px 20px">
+          <div class="cmp-row">
+            <div class="cmp-input">
+              <input type="text" id="cmp1" placeholder="Joueur 1..." oninput="searchCompare('cmp1')">
+              <div class="cmp-results" id="cmp1-results"></div>
+            </div>
+            <div class="cmp-input">
+              <input type="text" id="cmp2" placeholder="Joueur 2..." oninput="searchCompare('cmp2')">
+              <div class="cmp-results" id="cmp2-results"></div>
+            </div>
+          </div>
+          <div id="compare-list">
+            <div class="empty-state" style="padding:20px">
+              <p>Recherchez 2 joueurs ci-dessus pour les comparer</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: Stats ═══ -->
+    <div class="tab-content" id="tab-stats">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-head">🗺️ Maps les plus populaires</div>
+          <div class="chart-body" id="popular-maps"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">⏱️ Distribution des temps</div>
+          <div class="chart-body" id="dist-chart"></div>
+        </div>
+      </div>
+    </div>
+
+
+
+  </main>
+
+</div>
+
+<!-- ═══ MODALS (outside .app) ═══ -->
+
+<!-- Player Modal -->
+<div class="modal-overlay" id="player-modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-player-name">Joueur</div>
+      <div class="modal-subtitle" id="modal-player-stats">0 runs · 0 cartes</div>
+    </div>
+    <div class="modal-stats">
+      <div class="modal-stat"><div class="modal-stat-value" id="modal-wins">0</div><div class="modal-stat-label">Victoires</div></div>
+      <div class="modal-stat"><div class="modal-stat-value" id="modal-maps">0</div><div class="modal-stat-label">Cartes</div></div>
+      <div class="modal-stat"><div class="modal-stat-value" id="modal-avg">—</div><div class="modal-stat-label">Temps moyen</div></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Performances par carte</div>
+      <div class="player-runs" id="modal-runs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Modal -->
+<div class="modal-overlay" id="auth-modal" onclick="toggleAuthModal()">
+  <div class="modal auth-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="toggleAuthModal()">&times;</button>
+    <div class="auth-modal-logo">
+      <img src="logo.png" alt="TheFrontStats Logo" class="auth-modal-logo-img">
+    </div>
+    <div class="modal-header">
+      <div class="modal-title">Rejoindre l'aventure</div>
+      <div class="modal-subtitle">Connectez-vous pour lier vos records et suivre votre progression.</div>
+    </div>
+    <div class="auth-options" style="padding:0 28px">
+      <button class="auth-btn" onclick="handleLogin('google')">
+        <img src="PDP.png" alt="Google" style="width:20px;height:20px;border-radius:4px">
+        Continuer avec Google
+      </button>
+      <button class="auth-btn" onclick="handleLogin('discord')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        Continuer avec Discord
+      </button>
+    </div>
+    <div class="auth-divider">ou</div>
+    <p style="font-size:13px;color:var(--muted);text-align:center">En vous connectant, vous acceptez les conditions d'utilisation.</p>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profile-modal" onclick="closeProfileModal()">
+  <div class="modal auth-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeProfileModal()" style="position:absolute;top:12px;right:12px">&times;</button>
+    <div class="modal-header">
+      <div class="modal-title">Finaliser votre profil</div>
+      <div class="modal-subtitle">Choisissez un pseudo et votre Public ID (définitif, non modifiable ensuite).</div>
+    </div>
+    <div class="auth-form">
+      <div class="form-group">
+        <label for="profile-username">Nom d'utilisateur</label>
+        <input type="text" id="profile-username" placeholder="Ex: Skailex">
+      </div>
+      <div class="form-group">
+        <label for="profile-public-id">Public ID OpenFront</label>
+        <input type="text" id="profile-public-id" placeholder="Votre ID public">
+      </div>
+      <button class="auth-btn" onclick="saveUserProfile()" style="width:100%;justify-content:center;background:var(--orange);color:#fff;border-color:var(--orange)">Enregistrer le profil</button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="toast.js" defer></script>
+<script src="animations.js" defer></script>
+<script src="app.js" type="module"></script>
+
+
+<script>
+/* ====== Mode Selector Init (before module loads) ====== */
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('mode') === 'compact') {
+    var btnNormal = document.getElementById('mode-btn-normal');
+    var btnCompact = document.getElementById('mode-btn-compact');
+    if (btnNormal) btnNormal.classList.remove('active');
+    if (btnCompact) btnCompact.classList.add('active');
+  }
+})();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('[SW] Registration failed:', e));
+  }
+</script>
+</body>
+</html>

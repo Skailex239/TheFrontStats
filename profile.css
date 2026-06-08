@@ -1,0 +1,931 @@
+.profile-api-error {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 120, 80, 0.45);
+  background: rgba(255, 120, 80, 0.12);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.profile-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.profile-page-header .auth-zone {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
+#profile-loading .loading {
+  padding: 24px;
+  color: var(--text2);
+}
+
+.profile-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--rim);
+  background: var(--card);
+  transition: all 0.2s ease;
+}
+
+.profile-back-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.profile-locked-field {
+  opacity: 0.85;
+}
+
+.profile-locked-field input {
+  cursor: not-allowed;
+  background: var(--bg2);
+  color: var(--text2);
+}
+
+.profile-locked-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 6px;
+}
+
+.profile-edit-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  color: var(--text);
+  font-family: var(--f);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-edit-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--accentGlow);
+}
+
+/* ═══════════════════════════════════════
+   NEW PROFILE DESIGN — Simple & Clean
+   ═══════════════════════════════════════ */
+
+/* Hero: avatar + name + badge */
+.pf-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--rl);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  position: relative;
+  transition: border-color 0.2s ease;
+}
+.pf-hero:hover {
+  border-color: var(--rim2);
+}
+
+.pf-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accentL));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 6px 20px var(--accentGlow);
+}
+
+.pf-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pf-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.pf-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  padding: 3px 10px;
+  border-radius: 16px;
+}
+
+.pf-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.pf-edit-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--accentGlow);
+}
+
+.pf-edit-form {
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--rl);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  animation: fadeDown 0.3s ease;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reward section */
+.pf-reward-section {
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--rl);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.pf-reward-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pf-reward-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+
+.pf-reward-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text2);
+  padding: 10px 14px;
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid rgba(231, 76, 60, 0.2);
+  border-radius: 8px;
+}
+
+.pf-reward-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pf-reward-desc {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.pf-reward-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pf-toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2ecc71;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pf-toggle-label.off {
+  color: var(--text3);
+}
+
+/* Toggle switch dans le profil */
+.pf-reward-toggle .toggle-switch {
+  width: 40px;
+  height: 22px;
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  border-radius: 11px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s, border-color 0.2s;
+}
+.pf-reward-toggle .toggle-switch.on {
+  background: #e74c3c;
+  border-color: #e74c3c;
+}
+.pf-reward-toggle .toggle-switch.is-flame.on {
+  background: #f39c12;
+  border-color: #f39c12;
+}
+.pf-reward-toggle .toggle-switch.is-rainbow.on {
+  background: linear-gradient(90deg, #ff0000, #ff8800, #00ff00, #00aaff, #8800ff);
+  border-color: #8800ff;
+}
+.pf-reward-toggle .toggle-switch.is-cyberpunk.on {
+  background: linear-gradient(90deg, #ff00ff, #00ffff);
+  border-color: #ff00ff;
+}
+.pf-reward-toggle .toggle-switch.is-sunset.on {
+  background: linear-gradient(90deg, #ff4500, #ffd700);
+  border-color: #ff8c00;
+}
+.pf-reward-toggle .toggle-switch.is-aurore.on {
+  background: linear-gradient(90deg, #00ff87, #60efff);
+  border-color: #00ff87;
+}
+.pf-reward-toggle .toggle-switch.is-pastel.on {
+  background: linear-gradient(90deg, #ff9a9e, #a18cd1);
+  border-color: #a18cd1;
+}
+.pf-reward-toggle .toggle-switch.is-gold.on {
+  background: linear-gradient(90deg, #ffd700, #daa520);
+  border-color: #ffd700;
+}
+.pf-reward-toggle .toggle-switch.is-volcano.on {
+  background: linear-gradient(90deg, #ff0000, #ff8c00);
+  border-color: #ff4500;
+}
+.pf-reward-toggle .toggle-switch.is-ocean.on {
+  background: linear-gradient(90deg, #0077b6, #00b4d8);
+  border-color: #00b4d8;
+}
+.pf-reward-toggle .toggle-switch.is-miami.on {
+  background: linear-gradient(90deg, #ff6ec7, #7b68ee);
+  border-color: #ff6ec7;
+}
+.pf-reward-toggle .toggle-switch.is-toxic.on {
+  background: linear-gradient(90deg, #39ff14, #7fff00);
+  border-color: #39ff14;
+}
+.pf-reward-toggle .toggle-switch.is-chroma.on {
+  background: linear-gradient(90deg, #ff0000, #00ff00, #00aaff, #8800ff);
+  border-color: #8800ff;
+}
+.pf-reward-toggle .toggle-switch .toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.pf-reward-toggle .toggle-switch.on .toggle-knob {
+  transform: translateX(18px);
+}
+
+.pf-reward-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: var(--f);
+}
+.pf-reward-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.pf-reward-msg {
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 16px;
+}
+.pf-reward-msg.success { color: #2ecc71; }
+.pf-reward-msg.error { color: #e74c3c; }
+
+/* Cosmetic cards grid */
+.pf-cosmetics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.pf-cosmetic-card {
+  position: relative;
+  background: var(--bg2);
+  border: 2px solid var(--rim);
+  border-radius: 10px;
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.pf-cosmetic-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px) scale(1.02);
+}
+.pf-cosmetic-card.selected {
+  border-color: var(--accent);
+  background: var(--accentGlow);
+  box-shadow: 0 0 16px var(--accentGlow), inset 0 0 12px rgba(91,138,255,0.06);
+  transform: scale(1.04);
+}
+.pf-cosmetic-card.selected.vip {
+  border-color: #ff1744;
+  background: rgba(255, 23, 68, 0.08);
+  box-shadow: 0 0 16px rgba(255, 23, 68, 0.25), inset 0 0 12px rgba(255, 23, 68, 0.06);
+}
+.pf-cosmetic-card.selected.flame {
+  border-color: #ff6d00;
+  background: rgba(255, 109, 0, 0.08);
+  box-shadow: 0 0 16px rgba(255, 109, 0, 0.25), inset 0 0 12px rgba(255, 109, 0, 0.06);
+}
+.pf-cosmetic-card.selected.rainbow {
+  border-color: #8b00ff;
+  background: rgba(139, 0, 255, 0.08);
+  box-shadow: 0 0 16px rgba(139, 0, 255, 0.25), inset 0 0 12px rgba(139, 0, 255, 0.06);
+}
+.pf-cosmetic-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.5px;
+}
+.pf-cosmetic-preview {
+  display: inline-block !important;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.pf-cosmetic-desc {
+  font-size: 10px;
+  color: var(--text3);
+  line-height: 1.3;
+}
+.pf-cosmetic-check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* "Aucun" card */
+.pf-cosmetic-card.none {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.pf-cosmetic-card.none:hover {
+  opacity: 1;
+}
+.pf-cosmetic-card.none.selected {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--rim2);
+  background: var(--bg2);
+  box-shadow: none;
+  transform: scale(1.02);
+}
+.pf-none-icon {
+  font-size: 22px;
+  color: var(--text3);
+  line-height: 1;
+}
+.pf-reward-form-label {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════
+   COSMETIC STYLING — Text Color Animation
+   Couleur du texte qui change en boucle
+   ═══════════════════════════════════════ */
+
+/* VIP — Rouge/Noir cyclique */
+@keyframes vipColor {
+  0%, 100% { color: #ff1744; }
+  20% { color: #d50000; }
+  40% { color: #8b0000; }
+  60% { color: #1a1a2e; }
+  80% { color: #8b0000; }
+}
+
+/* FLAME — Orange/Jaune/Rouge cyclique */
+@keyframes flameColor {
+  0%, 100% { color: #ff6d00; }
+  16% { color: #ffab00; }
+  33% { color: #ffd600; }
+  50% { color: #ff8c00; }
+  66% { color: #e74c3c; }
+  83% { color: #ff4500; }
+}
+
+/* RAINBOW — Arc-en-ciel animé (dégradé qui glisse) */
+@keyframes animationRGB {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* ── VIP ── */
+.player-vip {
+  color: #ff1744 !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  animation: vipColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── FLAME ── */
+.player-flame {
+  color: #ff6d00 !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  animation: flameColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── RAINBOW ── */
+.player-rainbow {
+  font-weight: bold !important;
+  font-size: 16px !important;
+  display: inline-block !important;
+  background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  animation: animationRGB 3s linear infinite !important;
+}
+
+/* Pas de border-left sur les rows cosmétiques */
+.run-row.is-vip,
+.run-row.is-flame,
+.run-row.is-rainbow {
+  border-left: none !important;
+}
+
+/* ── Run rows — VIP ── */
+.run-row.is-vip .run-player {
+  color: #ff1744 !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  animation: vipColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── Run rows — FLAME ── */
+.run-row.is-flame .run-player {
+  color: #ff6d00 !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  animation: flameColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── Run rows — RAINBOW ── */
+.run-row.is-rainbow .run-player {
+  font-weight: bold !important;
+  font-size: 16px !important;
+  display: inline-block !important;
+  background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  animation: animationRGB 3s linear infinite !important;
+}
+
+/* ── VIP name on profile hero ── */
+.pf-name.player-vip {
+  color: #ff1744 !important;
+  font-weight: 900 !important;
+  font-size: 30px !important;
+  animation: vipColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── FLAME name on profile hero ── */
+.pf-name.player-flame {
+  color: #ff6d00 !important;
+  font-weight: 900 !important;
+  font-size: 30px !important;
+  animation: flameColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── RAINBOW name on profile hero ── */
+.pf-name.player-rainbow {
+  font-weight: bold !important;
+  font-size: 30px !important;
+  display: inline-block !important;
+  background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  animation: animationRGB 3s linear infinite !important;
+}
+
+/* ── Global leaderboard — VIP ── */
+.global-player.player-vip {
+  color: #ff1744 !important;
+  font-weight: 900 !important;
+  font-size: 15px !important;
+  animation: vipColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── Global leaderboard — FLAME ── */
+.global-player.player-flame {
+  color: #ff6d00 !important;
+  font-weight: 900 !important;
+  font-size: 15px !important;
+  animation: flameColor 2s linear infinite !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── Global leaderboard — RAINBOW ── */
+.global-player.player-rainbow {
+  font-weight: bold !important;
+  font-size: 15px !important;
+  background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  animation: animationRGB 3s linear infinite !important;
+}
+
+/* Mobile — pseudo cosmétique sur profil */
+@media (max-width: 700px) {
+  .pf-name.player-vip,
+  .pf-name.player-flame,
+  .pf-name.player-rainbow {
+    font-size: 24px !important;
+  }
+}
+
+/* Stats row */
+.pf-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pf-stat {
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--r);
+  padding: 18px 16px;
+  text-align: center;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.pf-stat:hover {
+  border-color: var(--rim2);
+  transform: translateY(-2px);
+}
+
+.pf-stat-val {
+  font-size: 26px;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.pf-stat-lbl {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Sections */
+.pf-section {
+  margin-bottom: 24px;
+}
+
+.pf-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+
+/* Monthly chart — horizontal bars */
+.pf-chart {
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--rl);
+  padding: 20px;
+}
+
+.pf-chart-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.pf-chart-label {
+  width: 56px;
+  font-size: 12px;
+  color: var(--text2);
+  text-align: right;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+
+.pf-chart-track {
+  flex: 1;
+  height: 22px;
+  background: var(--bg2);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pf-chart-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #FF5500, #FF8900, #FFCC00);
+  transition: width 0.5s cubic-bezier(0.22, 0.68, 0.36, 1.05);
+  min-width: 0;
+}
+
+.pf-chart-val {
+  width: 32px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* Game rectangles */
+.pf-games {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-game {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.pf-game:hover {
+  border-color: var(--accent);
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.pf-game-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.pf-game-icon.won {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.pf-game-icon.lost {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.pf-game-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pf-game-map {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-game-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.pf-game-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--rim);
+  color: var(--text3);
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.pf-game:hover .pf-game-link {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.pf-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text2);
+  font-size: 13px;
+  background: var(--card);
+  border: 1px solid var(--rim);
+  border-radius: var(--r);
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .pf-hero {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  .pf-edit-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+  .pf-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pf-name {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pf-stats-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .pf-stat {
+    padding: 14px 12px;
+  }
+  .pf-stat-val {
+    font-size: 22px;
+  }
+}
+
+/* ═══════════════════════════════════════
+   NEW TEXT SKINS — 10 Cosmetic Types (Profile)
+   ═══════════════════════════════════════ */
+
+@keyframes bouge-rgb{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+
+.container-rgb{background:#0d0d11;font-size:42px;font-weight:900}
+
+/* ── Profile hero name overrides for new skins ── */
+.pf-name.rgb-cyberpunk{display:inline-block !important;font-family:'Orbitron',sans-serif !important;font-size:30px !important;background:linear-gradient(90deg,#ff00ff,#00ffff,#ff00ff) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 3s linear infinite !important;filter:brightness(1.2) !important}
+.pf-name.rgb-sunset{display:inline-block !important;font-family:'Cinzel',serif !important;font-size:30px !important;background:linear-gradient(90deg,#ff4500,#ff8c00,#ffd700,#ff6347) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 4s linear infinite !important}
+.pf-name.rgb-aurore{display:inline-block !important;font-family:'Montserrat',sans-serif !important;font-size:30px !important;background:linear-gradient(90deg,#00ff87,#60efff,#0061ff,#60efff,#00ff87) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 5s linear infinite !important}
+.pf-name.rgb-pastel{display:inline-block !important;font-family:'Creepster',cursive !important;font-size:30px !important;background:linear-gradient(90deg,#ff9a9e,#fecfef,#a18cd1,#fbc2eb,#ff9a9e) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 6s linear infinite !important}
+.pf-name.rgb-gold{display:inline-block !important;font-family:'Cinzel',serif !important;font-size:30px !important;background:linear-gradient(90deg,#ffd700,#ffec8b,#daa520,#ffec8b,#ffd700) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 3s linear infinite !important;filter:brightness(1.1) !important}
+.pf-name.rgb-volcano{display:inline-block !important;font-family:'Rubik Glitch',cursive !important;font-size:30px !important;background:linear-gradient(90deg,#ff0000,#ff4500,#ff8c00,#ff4500,#ff0000) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 2.5s linear infinite !important}
+.pf-name.rgb-ocean{display:inline-block !important;font-family:'Rubik Mono One',sans-serif !important;font-size:30px !important;background:linear-gradient(90deg,#0077b6,#00b4d8,#90e0ef,#00b4d8,#0077b6) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 4s linear infinite !important}
+.pf-name.rgb-miami{display:inline-block !important;font-family:'Permanent Marker',cursive !important;font-size:30px !important;background:linear-gradient(90deg,#ff6ec7,#7b68ee,#ff6ec7) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 3s linear infinite !important}
+.pf-name.rgb-toxic{display:inline-block !important;font-family:'Speedy',cursive !important;font-size:30px !important;background:linear-gradient(90deg,#39ff14,#7fff00,#adff2f,#7fff00,#39ff14) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 2s linear infinite !important;filter:brightness(1.15) !important}
+.pf-name.rgb-chroma{display:inline-block !important;font-family:'Montserrat',sans-serif !important;font-size:30px !important;background:linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00aaff,#8800ff,#ff0088,#ff0000) !important;background-size:200% auto !important;-webkit-background-clip:text !important;-webkit-text-fill-color:transparent !important;background-clip:text !important;color:transparent !important;animation:bouge-rgb 4s linear infinite !important}
+
+/* ── Cosmetic card selected state for new skins ── */
+.pf-cosmetic-card.selected.cyberpunk{border-color:#ff00ff;background:rgba(255,0,255,0.08);box-shadow:0 0 12px rgba(255,0,255,0.2)}
+.pf-cosmetic-card.selected.sunset{border-color:#ff8c00;background:rgba(255,140,0,0.08);box-shadow:0 0 12px rgba(255,140,0,0.2)}
+.pf-cosmetic-card.selected.aurore{border-color:#60efff;background:rgba(96,239,255,0.08);box-shadow:0 0 12px rgba(96,239,255,0.2)}
+.pf-cosmetic-card.selected.pastel{border-color:#a18cd1;background:rgba(161,140,209,0.08);box-shadow:0 0 12px rgba(161,140,209,0.2)}
+.pf-cosmetic-card.selected.gold{border-color:#ffd700;background:rgba(255,215,0,0.08);box-shadow:0 0 16px rgba(255,215,0,0.25),inset 0 0 12px rgba(255,215,0,0.06)}
+.pf-cosmetic-card.selected.volcano{border-color:#ff4500;background:rgba(255,69,0,0.08);box-shadow:0 0 12px rgba(255,69,0,0.2)}
+.pf-cosmetic-card.selected.ocean{border-color:#00b4d8;background:rgba(0,180,216,0.08);box-shadow:0 0 12px rgba(0,180,216,0.2)}
+.pf-cosmetic-card.selected.miami{border-color:#ff6ec7;background:rgba(255,110,199,0.08);box-shadow:0 0 12px rgba(255,110,199,0.2)}
+.pf-cosmetic-card.selected.toxic{border-color:#39ff14;background:rgba(57,255,20,0.08);box-shadow:0 0 12px rgba(57,255,20,0.2)}
+.pf-cosmetic-card.selected.chroma{border-color:#8800ff;background:rgba(136,0,255,0.08);box-shadow:0 0 12px rgba(136,0,255,0.2)}
+.pf-cosmetic-card.selected.prism{border-color:#cc00ff;background:linear-gradient(135deg,rgba(255,0,85,0.08),rgba(0,255,136,0.08),rgba(102,68,255,0.08));box-shadow:0 0 16px rgba(204,0,255,0.25),inset 0 0 12px rgba(204,0,255,0.06)}
+
+/* PRISM skin preview in profile */
+.pf-name.rgb-prism{
+  display:inline-block !important;
+  font-family:'Orbitron',sans-serif !important;
+  background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055) !important;
+  background-size:200% auto !important;
+  -webkit-background-clip:text !important;
+  -webkit-text-fill-color:transparent !important;
+  background-clip:text !important;
+  color:transparent !important;
+  animation:prism-slide 3s linear infinite !important;
+}
+.pf-cosmetic-preview.rgb-prism{
+  display:inline-block !important;
+  font-family:'Orbitron',sans-serif !important;
+  background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055) !important;
+  background-size:200% auto !important;
+  -webkit-background-clip:text !important;
+  -webkit-text-fill-color:transparent !important;
+  background-clip:text !important;
+  color:transparent !important;
+  animation:prism-slide 3s linear infinite !important;
+}
+
+/* Mobile overrides for new skins */
+@media(max-width:700px){
+  .pf-name.rgb-cyberpunk,.pf-name.rgb-sunset,.pf-name.rgb-aurore,
+  .pf-name.rgb-pastel,.pf-name.rgb-gold,.pf-name.rgb-volcano,
+  .pf-name.rgb-ocean,.pf-name.rgb-miami,.pf-name.rgb-toxic,.pf-name.rgb-chroma,
+  .pf-name.rgb-prism{
+    font-size:24px !important;
+  }
+}

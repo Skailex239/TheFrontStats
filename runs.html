@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TheFrontStats — OpenFront Leaderboard</title>
+    <link rel="dns-prefetch" href="https://api.openfront.io">
+    <link rel="dns-prefetch" href="https://corsproxy.io">
+    <link rel="icon" type="image/png" href="favicon-official.png">
+    <link rel="stylesheet" href="styles.css?v=19" />
+    <link rel="stylesheet" href="animations.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="animations.css"></noscript>
+    <link rel="stylesheet" href="toast.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="site-logo" id="site-logo" style="margin-bottom:16px">
+        <img src="logo.png" alt="TheFrontStats Logo" class="site-logo-img" id="site-logo-img" style="height:80px;margin-top:0;margin-bottom:0">
+      </div>
+      <div class="content">
+        <div class="content-header">
+          <div>
+            <div class="content-title">Top runs</div>
+            <div class="content-meta" id="meta">Chargement…</div>
+          </div>
+          <div class="runs-controls">
+            <div class="runs-ctrl">
+              <span class="runs-ctrl-label">Fenêtre (jours)</span>
+              <input id="windowDays" type="number" min="1" max="370" step="1" value="30" />
+            </div>
+            <div class="runs-ctrl">
+              <span class="runs-ctrl-label">Limite</span>
+              <input id="limit" type="number" min="1" max="100" step="1" value="20" />
+            </div>
+            <button id="refreshBtn" class="runs-btn" type="button">Actualiser</button>
+          </div>
+        </div>
+
+        <div class="runs-body">
+          <div id="status" class="loading">Recherche des meilleurs runs…</div>
+          <div id="errorBox" class="runs-error" hidden></div>
+
+          <div class="runs-table-wrap" style="overflow-x:auto">
+            <table class="global-table" id="runsTable">
+              <thead>
+                <tr>
+                  <th style="width:70px">#</th>
+                  <th>Joueur</th>
+                  <th>Map</th>
+                  <th style="width:120px">Temps</th>
+                  <th style="width:140px">Difficulté</th>
+                  <th style="width:110px">Joueurs</th>
+                  <th style="width:210px">Date</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+
+          <div class="runs-footer" id="generatedMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="animations.js" defer></script>
+    <script src="toast.js"></script>
+    <script src="runs.js"></script>
+    <script>
+/* ====== Logo Animation System (sub-page) ====== */
+(function(){
+  var logo = document.getElementById('site-logo');
+  var img  = document.getElementById('site-logo-img');
+  if (!logo || !img) return;
+
+  /* --- 3D perspective tilt on hover --- */
+  var MAX_TILT = 10;
+  logo.addEventListener('mousemove', function(e){
+    var rect = logo.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width  - 0.5;
+    var y = (e.clientY - rect.top)  / rect.height - 0.5;
+    img.classList.add('tilted');
+    img.style.transform = 'perspective(800px) rotateX('+(-y*MAX_TILT)+'deg) rotateY('+(x*MAX_TILT)+'deg) scale(1.03)';
+  });
+  logo.addEventListener('mouseleave', function(){
+    img.classList.remove('tilted');
+    img.style.transform = '';
+  });
+
+  /* --- Click: exit-spin animation then navigate to index --- */
+  var navigating = false;
+  logo.addEventListener('click', function(e){
+    if (navigating) return;
+    navigating = true;
+    img.classList.add('exit-spin');
+    setTimeout(function(){
+      window.location.href = 'index.html';
+    }, 320);
+  });
+
+  /* --- Entrance animation --- */
+  img.classList.add('enter-anim');
+  img.addEventListener('animationend', function onEnd(){
+    img.classList.remove('enter-anim');
+    img.removeEventListener('animationend', onEnd);
+  });
+})();
+    </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('[SW] Registration failed:', e));
+  }
+</script>
+  </body>
+</html>

@@ -1,0 +1,481 @@
+/* ============================================
+   TheFrontStats — Animation System
+   Adds life, depth, and polish across the site
+   ============================================ */
+
+/* ── 1. Animated Background Gradient ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255,122,0,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,177,93,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255,122,0,.02) 0%, transparent 60%);
+  animation: bgShift 30s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes bgShift {
+  0%   { opacity: 1; }
+  100% { opacity: .85; }
+}
+
+:root.light body::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255,122,0,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(255,122,0,.03) 0%, transparent 60%);
+}
+
+/* ── 2. Floating Particles Background ── */
+.particles-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .5;
+}
+
+:root.light .particles-canvas {
+  opacity: .3;
+}
+
+/* ── 3. Staggered Page Entrance ── */
+.animate-entrance {
+  opacity: 0;
+  transform: translateY(24px);
+  animation: entranceIn .6s cubic-bezier(.22,.68,.36,1.2) forwards;
+}
+
+@keyframes entranceIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stagger delays */
+.stagger-1 { animation-delay: .05s; }
+.stagger-2 { animation-delay: .10s; }
+.stagger-3 { animation-delay: .15s; }
+.stagger-4 { animation-delay: .20s; }
+.stagger-5 { animation-delay: .25s; }
+.stagger-6 { animation-delay: .30s; }
+.stagger-7 { animation-delay: .35s; }
+.stagger-8 { animation-delay: .40s; }
+
+/* ── 4. Scroll Reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px) scale(.97);
+  transition: opacity .55s cubic-bezier(.22,.68,.36,1.05),
+              transform .55s cubic-bezier(.22,.68,.36,1.05);
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Direction variants */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-30px);
+  transition: opacity .55s cubic-bezier(.22,.68,.36,1.05),
+              transform .55s cubic-bezier(.22,.68,.36,1.05);
+}
+.reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(30px);
+  transition: opacity .55s cubic-bezier(.22,.68,.36,1.05),
+              transform .55s cubic-bezier(.22,.68,.36,1.05);
+}
+.reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── 5. Stat Cards — Enhanced 3D Hover ── */
+.stat-card {
+  transition: transform .25s cubic-bezier(.22,.68,.36,1.15),
+              border-color .25s ease,
+              box-shadow .25s ease !important;
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.02) !important;
+  box-shadow: 0 12px 40px rgba(255,122,0,.12), 0 0 0 1px var(--accent) !important;
+}
+
+/* Stat value count-up animation */
+.stat-value.counting {
+  display: inline-block;
+}
+
+/* ── 6. Cards — 3D Depth on Hover ── */
+.feed-card,
+.hof-card,
+.content,
+.chart-card,
+.modal-stat,
+.profile-main-card,
+.profile-edit-form-card,
+.profile-api-stat {
+  transition: transform .25s cubic-bezier(.22,.68,.36,1.05),
+              box-shadow .25s ease,
+              border-color .25s ease !important;
+  will-change: transform;
+}
+.feed-card:hover,
+.content:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,.15);
+}
+
+/* ── 7. Hall of Fame — 3D Card Lift ── */
+.hof-card {
+  transition: transform .3s cubic-bezier(.22,.68,.36,1.15),
+              box-shadow .3s ease,
+              border-color .3s ease !important;
+}
+.hof-card:hover {
+  transform: translateY(-6px) scale(1.03) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.2) !important;
+}
+.hof-1:hover {
+  box-shadow: 0 20px 50px rgba(240,192,64,.15), 0 0 0 1px var(--gold) !important;
+}
+.hof-2:hover {
+  box-shadow: 0 20px 50px rgba(143,168,192,.12), 0 0 0 1px var(--silver) !important;
+}
+.hof-3:hover {
+  box-shadow: 0 20px 50px rgba(184,120,64,.12), 0 0 0 1px var(--bronze) !important;
+}
+
+/* ── 8. Run Rows — Slide-in + Hover Glow ── */
+.run-row {
+  transition: background .15s ease,
+              transform .2s cubic-bezier(.22,.68,.36,1.05),
+              box-shadow .2s ease !important;
+}
+.run-row:hover {
+  background: rgba(255,122,0,.06) !important;
+  transform: translateX(3px);
+}
+.run-row.is-me {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ── 9. Feed Items — Staggered Entrance ── */
+.feed-item {
+  transition: background .12s ease,
+              transform .2s cubic-bezier(.22,.68,.36,1.05) !important;
+}
+.feed-item:hover {
+  background: rgba(255,122,0,.04) !important;
+  transform: translateX(4px);
+}
+
+/* ── 10. Tab Switch — Smooth Morph ── */
+.tab-btn:not(.nav-item) {
+  position: relative;
+  overflow: hidden;
+}
+.tab-btn:not(.nav-item)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  border-radius: 8px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .3s cubic-bezier(.22,.68,.36,1.05);
+  z-index: -1;
+}
+.tab-btn:not(.nav-item).active::after {
+  transform: scaleX(1);
+}
+
+/* ── 11. Modal — 3D Entrance ── */
+.modal-overlay.active {
+  animation: overlayIn .25s ease forwards;
+}
+@keyframes overlayIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(6px); }
+}
+
+.modal-overlay.active .modal {
+  animation: modalIn .35s cubic-bezier(.22,.68,.36,1.15) forwards;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: perspective(800px) rotateX(-8deg) scale(.92) translateY(20px); }
+  to   { opacity: 1; transform: perspective(800px) rotateX(0) scale(1) translateY(0); }
+}
+
+/* ── 12. Shimmer Loading ── */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg2) !important;
+  color: transparent !important;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,.04) 20%,
+    rgba(255,255,255,.08) 50%,
+    rgba(255,255,255,.04) 80%,
+    transparent 100%
+  );
+  animation: shimmerSlide 1.8s ease-in-out infinite;
+}
+:root.light .shimmer::after {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,.03) 20%,
+    rgba(0,0,0,.06) 50%,
+    rgba(0,0,0,.03) 80%,
+    transparent 100%
+  );
+}
+@keyframes shimmerSlide {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* ── 13. Map Items — Hover Glow ── */
+.map-item {
+  transition: all .2s cubic-bezier(.22,.68,.36,1.05) !important;
+}
+.map-item:hover {
+  transform: translateX(4px);
+  border-left: 3px solid var(--accent);
+  padding-left: 13px !important;
+}
+.map-item.active {
+  animation: mapActive .3s ease;
+}
+@keyframes mapActive {
+  from { transform: scale(.97); opacity: .7; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── 14. Buttons — Ripple Effect ── */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  transform: scale(0);
+  animation: rippleExpand .5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleExpand {
+  to { transform: scale(3); opacity: 0; }
+}
+
+/* ── 15. Number Count-Up ── */
+@keyframes countPop {
+  0%   { transform: scale(.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.count-pop {
+  animation: countPop .4s cubic-bezier(.22,.68,.36,1.2) forwards;
+}
+
+/* ── 16. Live Badge — Animated ── */
+.refresh-badge {
+  position: relative;
+}
+.refresh-badge::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: var(--green);
+  animation: livePing 2s cubic-bezier(0,0,.2,1) infinite;
+  z-index: -1;
+}
+@keyframes livePing {
+  0%   { transform: scale(1); opacity: .6; }
+  75%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* ── 17. Settings Gear — Rotation on Hover ── */
+.settings-btn:hover svg {
+  animation: gearSpin .5s cubic-bezier(.22,.68,.36,1.2);
+}
+@keyframes gearSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(90deg); }
+}
+
+/* ── 18. Profile Card — Depth Entrance ── */
+.profile-main-card {
+  transition: transform .3s cubic-bezier(.22,.68,.36,1.05),
+              box-shadow .3s ease !important;
+}
+.profile-main-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.12);
+}
+
+/* ── 19. Search Input — Focus Glow ── */
+.search-input:focus,
+.map-search-wrap input:focus,
+.cmp-input input:focus,
+.runs-controls input:focus,
+.form-group input:focus {
+  box-shadow: 0 0 0 3px rgba(255,122,0,.12), 0 0 20px rgba(255,122,0,.08) !important;
+  animation: inputPulse .4s ease;
+}
+@keyframes inputPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,122,0,.3); }
+  100% { box-shadow: 0 0 0 3px rgba(255,122,0,.12); }
+}
+
+/* ── 20. Game Version Badge ── */
+.game-version {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--card2);
+  border: 1px solid var(--rim);
+  transition: all .2s ease;
+}
+.game-version:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accentGlow);
+}
+
+/* ── 21. Back Link — Arrow Slide ── */
+.profile-back-link {
+  transition: all .2s cubic-bezier(.22,.68,.36,1.05) !important;
+}
+.profile-back-link:hover {
+  transform: translateX(-4px);
+}
+
+/* ── 22. GG Button — Heartbeat on Active ── */
+.gg-btn.active {
+  animation: ggHeartbeat .4s ease;
+}
+@keyframes ggHeartbeat {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.12); }
+  50%  { transform: scale(.95); }
+  75%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* ── 23. Dropdown — Smooth Open ── */
+.user-container.open .user-dropdown-menu {
+  transform-origin: top right;
+  animation: dropdownIn .2s cubic-bezier(.22,.68,.36,1.05) forwards;
+}
+@keyframes dropdownIn {
+  from { opacity: 0; transform: scale(.9) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── 24. Logo — Floating Idle Animation ── */
+.site-logo-img {
+  transition: transform .25s cubic-bezier(.22,.68,.36,1.05),
+              filter .25s ease !important;
+}
+.site-logo-img:not(.tilted):not(.click-flip):not(.exit-spin):not(.enter-anim) {
+  animation: logoFloat 5s ease-in-out infinite;
+}
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+.site-logo:hover .site-logo-img:not(.tilted):not(.click-flip):not(.exit-spin) {
+  filter: drop-shadow(0 0 16px var(--accentGlow));
+}
+
+/* ── 25. Rank Badges — Shimmer ── */
+.run-rank.gold, .global-rank.gold {
+  text-shadow: 0 0 8px rgba(240,192,64,.3);
+}
+.run-rank.silver, .global-rank.silver {
+  text-shadow: 0 0 8px rgba(143,168,192,.2);
+}
+.run-rank.bronze, .global-rank.bronze {
+  text-shadow: 0 0 8px rgba(184,120,64,.2);
+}
+
+/* ── 26. Compare Results — Animated Bars ── */
+.dist-bar {
+  transition: width .6s cubic-bezier(.22,.68,.36,1.05) !important;
+}
+.dist-bar:hover {
+  transform: scaleY(1.3);
+  box-shadow: 0 0 10px var(--accentGlow);
+}
+
+/* ── 27. Profile Stats Grid — Stagger ── */
+.profile-stats-grid .modal-stat {
+  transition: transform .25s cubic-bezier(.22,.68,.36,1.05),
+              box-shadow .25s ease !important;
+}
+.profile-stats-grid .modal-stat:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 25px rgba(0,0,0,.12);
+}
+
+/* ── 28. Toggle Switch — Bouncy ── */
+.toggle-switch.on::after {
+  animation: toggleBounce .3s cubic-bezier(.22,.68,.36,1.4);
+}
+@keyframes toggleBounce {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(20px); }
+  70%  { transform: translateX(16px); }
+  100% { transform: translateX(18px); }
+}
+
+/* ── 29. Auth Buttons — Hover Slide ── */
+.auth-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s cubic-bezier(.22,.68,.36,1.05),
+              filter .2s ease !important;
+}
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  transform: translateX(-100%);
+  transition: transform .4s ease;
+}
+.auth-btn:hover::after {
+  transform: translateX(100%);
+}
+
+/* ── 30. Reduced Motion Preference ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal, .reveal-left, .reveal-right {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

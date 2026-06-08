@@ -1,0 +1,86 @@
+name: Auto Sync
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  sync-standard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
+      - run: node sync.js
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+          SYNC_HISTORY_WINDOWS: "500"
+      - name: Commit et push via API (standard)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add runs_public.json.gz teams.json
+          git commit -m "[auto] sync" || { echo "no changes standard"; exit 0; }
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync" $CHANGED
+
+  sync-compact:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
+      - run: node sync-compact.js
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+          COMPACT_HISTORY_WINDOWS: "500"
+      - name: Commit et push via API (compact)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add runs_compact_public.json.gz
+          git commit -m "[auto] sync compact" || { echo "no changes compact"; exit 0; }
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync compact" $CHANGED
+
+  retrigger:
+    needs: [sync-standard, sync-compact]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Redeclencher dans 3 minutes
+        run: |
+          sleep 180
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "Redeclenchement programme"
+        shell: bash

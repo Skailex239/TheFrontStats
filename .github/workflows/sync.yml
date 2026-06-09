@@ -5,36 +5,26 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
-concurrency:
-  group: auto-sync
-  cancel-in-progress: false
-
 jobs:
-  sync:
+  sync-standard:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: write
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
-
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-
       - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
-
-      # ── Sync Standard (FFA Normal) ──
       - run: node sync.js
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           SYNC_HISTORY_WINDOWS: "500"
-
-      - name: Commit & push (standard)
+      - name: Commit et push (standard)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -44,46 +34,57 @@ jobs:
           for f in runs_public.json.gz runs.json.gz teams.json seen.json checkpoint.json; do
             [ -f "$f" ] && git add "$f"
           done
-          git diff --cached --quiet && { echo "no changes standard"; } || {
-            git commit -m "[auto] sync"
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
-            if [ -n "$CHANGED" ]; then
-              echo "Pushing standard: $CHANGED"
-              python3 push_via_api.py "[auto] sync" $CHANGED
-            fi
-          }
+          git diff --cached --quiet && { echo "no changes standard"; exit 0; }
+          git commit -m "[auto] sync"
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync" $CHANGED
 
-      # ── Re-pull pour avoir les changements du push précédent ──
-      - run: git pull --rebase origin main 2>/dev/null || true
-
-      # ── Sync Compact ──
+  sync-compact:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
       - run: node sync-compact.js
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           COMPACT_HISTORY_WINDOWS: "500"
-
-      - name: Commit & push (compact)
+      - name: Commit et push (compact)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           for f in runs_compact_public.json.gz runs_compact.json.gz seen_compact.json checkpoint_compact.json; do
             [ -f "$f" ] && git add "$f"
           done
-          git diff --cached --quiet && { echo "no changes compact"; } || {
-            git commit -m "[auto] sync compact"
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
-            if [ -n "$CHANGED" ]; then
-              echo "Pushing compact: $CHANGED"
-              python3 push_via_api.py "[auto] sync compact" $CHANGED
-            fi
-          }
+          git diff --cached --quiet && { echo "no changes compact"; exit 0; }
+          git commit -m "[auto] sync compact"
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync compact" $CHANGED
 
-      # ── Re-déclencheur ──
-      - name: Schedule next sync
-        if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+  retrigger:
+    needs: [sync-standard, sync-compact]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    steps:
+      - name: Redeclencher dans 3 minutes
         run: |
-          sleep 120
+          sleep 180
           curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "Redeclenchement programme"
         shell: bash

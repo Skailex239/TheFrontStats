@@ -42,6 +42,7 @@ jobs:
           python3 push_via_api.py "[auto] sync" $CHANGED
 
   sync-compact:
+    needs: sync-standard
     runs-on: ubuntu-latest
     permissions:
       contents: write

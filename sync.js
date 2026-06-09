@@ -99,13 +99,28 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ── Persistence ───────────────────────────────────────────────────────────────
 function loadRuns() {
   try {
+    // 1. Try full file first (fastest, raw array — local only, never committed)
     if (fs.existsSync(RUNS_FULL_FILE)) {
       const raw = JSON.parse(fs.readFileSync(RUNS_FULL_FILE, "utf8"));
       return Array.isArray(raw) ? raw : (raw.runs || []);
     }
-    const raw = JSON.parse(fs.readFileSync(RUNS_FILE, "utf8"));
-    return Array.isArray(raw) ? raw : (raw.runs || []);
-  } catch { return []; }
+    // 2. Try uncompressed JSON (gitignored, may exist locally)
+    if (fs.existsSync(RUNS_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(RUNS_FILE, "utf8"));
+      return Array.isArray(raw) ? raw : (raw.runs || []);
+    }
+    // 3. Try gzipped file (THIS is the one that's actually committed to the repo!)
+    const gzPath = RUNS_FILE + ".gz";
+    if (fs.existsSync(gzPath)) {
+      const gzipped = fs.readFileSync(gzPath);
+      const decompressed = zlib.gunzipSync(gzipped);
+      const raw = JSON.parse(decompressed.toString("utf8"));
+      return Array.isArray(raw) ? raw : (raw.runs || []);
+    }
+  } catch (e) {
+    console.warn(`[sync] ⚠️ loadRuns error: ${e.message}`);
+  }
+  return [];
 }
 
 function saveRuns(runs) {

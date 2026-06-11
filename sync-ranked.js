@@ -60,6 +60,45 @@ async function fetchLeaderboard() {
   return allPlayers;
 }
 
+async function enrichStreaks(players) {
+  // Calcule la série de victoires/défaites consécutives pour le top 20
+  const topN = 20;
+  const enriched = [...players];
+  for (let i = 0; i < Math.min(topN, enriched.length); i++) {
+    const p = enriched[i];
+    if (!p.public_id) continue;
+    try {
+      const res = await openFrontFetch(`${API_BASE}/public/player/${encodeURIComponent(p.public_id)}`);
+      if (!res.ok) {
+        console.warn(`[ranked-sync] Streak fetch ${p.username}: HTTP ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const games = (data.games || [])
+        .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
+        .sort((a, b) => new Date(b.start || b.end || 0) - new Date(a.start || a.end || 0));
+
+      let streak = 0;
+      for (const g of games) {
+        if (g.hasWon === true) {
+          if (streak >= 0) streak++;
+          else break;
+        } else if (g.hasWon === false) {
+          if (streak <= 0) streak--;
+          else break;
+        } else {
+          break; // unknown result
+        }
+      }
+      enriched[i] = { ...p, streak };
+      console.log(`[ranked-sync] Streak #${i + 1} ${p.username}: ${streak > 0 ? '🔥+' + streak : streak < 0 ? '❄️' + streak : '0'}`);
+    } catch (e) {
+      console.warn(`[ranked-sync] Streak erreur ${p.username}:`, e.message);
+    }
+  }
+  return enriched;
+}
+
 function saveWithMovement(players) {
   // Charger l'ancien classement pour calculer les mouvements
   let previousById = new Map();
@@ -93,11 +132,12 @@ function saveWithMovement(players) {
   fs.writeFileSync("ranked.json.gz", zlib.gzipSync(json));
   
   const movements = enriched.filter(p => p.movement != null && p.movement !== 0).length;
+  const streaks = enriched.filter(p => p.streak != null && p.streak !== 0).length;
   console.log(
     `[ranked-sync] 💾 ${enriched.length} joueurs sauvegardés — ` +
       `${(json.length / 1024).toFixed(0)} KB raw / ` +
       `${(zlib.gzipSync(json).length / 1024).toFixed(0)} KB gz ` +
-      `(${movements} mouvements détectés)`
+      `(${movements} mouvements, ${streaks} streaks)`
   );
 }
 
@@ -111,7 +151,8 @@ async function main() {
     );
   }
   const players = await fetchLeaderboard();
-  saveWithMovement(players);
+  const playersWithStreaks = await enrichStreaks(players);
+  saveWithMovement(playersWithStreaks);
   console.log("[ranked-sync] ✅ Terminé.");
 }
 

@@ -1605,6 +1605,13 @@ function renderRankedTable(players) {
       ? `${p.peakElo || p.elo} <span style="color:var(--gold);font-size:11px">↑${peakDiff}</span>`
       : `${p.peakElo || p.elo}`;
     
+    // Streak badge
+    let streakHtml = '—';
+    if (p.streak != null && p.streak !== 0) {
+      if (p.streak > 0) streakHtml = `<span style="color:#f97316;font-weight:700">🔥${p.streak}</span>`;
+      else streakHtml = `<span style="color:#3b82f6;font-weight:700">❄️${Math.abs(p.streak)}</span>`;
+    }
+
     html += `
       <tr data-pid="${esc(p.public_id)}" style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;" 
           onmouseover="this.style.background='var(--bg2)'" 
@@ -1622,6 +1629,7 @@ function renderRankedTable(players) {
         <td style="padding: 12px 8px; color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 12px;"><span style="color:#10b981">${p.wins}</span> - <span style="color:#ef4444">${p.losses}</span></td>
         <td style="padding: 12px 8px; color: var(--text3); font-family: 'JetBrains Mono', monospace;">${p.total}</td>
         <td style="padding: 12px 8px; text-align: center; font-size: 12px;">${moveHtml}</td>
+        <td style="padding: 12px 8px; text-align: center; font-size: 12px;">${streakHtml}</td>
       </tr>
     `;
   });
@@ -1815,11 +1823,27 @@ async function showRankedPlayerModal(publicId, username) {
       .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
       .reverse()
       .slice(0, 10);
+
+    // Compute streak from all ranked games (not just last 10)
+    const allRankedGames = (pData.games || [])
+      .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
+      .sort((a, b) => new Date(b.start || b.end || 0) - new Date(a.start || a.end || 0));
+    let streak = 0;
+    for (const g of allRankedGames) {
+      if (g.hasWon === true) {
+        if (streak >= 0) streak++;
+        else break;
+      } else if (g.hasWon === false) {
+        if (streak <= 0) streak--;
+        else break;
+      } else break;
+    }
+    const streakText = streak > 0 ? `🔥 Série: ${streak} victoires` : streak < 0 ? `❄️ Série: ${Math.abs(streak)} défaites` : '';
     
     if (statsEl) {
       const wins = rankedGames.filter(g => g.hasWon).length;
       const losses = rankedGames.filter(g => g.hasWon === false).length;
-      statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D`;
+      statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D${streakText ? ' · ' + streakText : ''}`;
     }
     
     if (rankedGames.length === 0) {

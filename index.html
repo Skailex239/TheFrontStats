@@ -137,7 +137,7 @@
     </section>
 
     <!-- Stats Cards -->
-    <section class="stats-grid">
+    <section class="stats-grid" id="ffa-stats-grid">
       <div class="card">
         <h2 id="stat-runs">—</h2>
         <p>Parties</p>
@@ -236,29 +236,78 @@
       </div>
     </div>
 
-    <!-- ═══ TAB: Stats ═══ -->
+    <!-- ═══ TAB: Ranked ═══ -->
     <div class="tab-content" id="tab-ranked">
+      <!-- Stats Cards Ranked -->
+      <section class="stats-grid" id="ranked-stats-grid">
+        <div class="card">
+          <h2 id="ranked-stat-players">—</h2>
+          <p>Joueurs classés</p>
+          <div class="stat-icon">👥</div>
+        </div>
+        <div class="card">
+          <h2 id="ranked-stat-avgelo">—</h2>
+          <p>Elo moyen</p>
+          <div class="stat-icon">📊</div>
+        </div>
+        <div class="card">
+          <h2 id="ranked-stat-peakelo">—</h2>
+          <p>Peak Elo</p>
+          <div class="stat-icon">🔥</div>
+        </div>
+        <div class="card">
+          <h2 id="ranked-stat-games">—</h2>
+          <p>Parties</p>
+          <div class="stat-icon">⚔️</div>
+        </div>
+      </section>
+
+      <!-- Search -->
+      <div class="search-bar">
+        <input type="text" id="ranked-search" class="search-input" placeholder="🔍 Rechercher un joueur classé..." oninput="filterRanked(this.value)">
+      </div>
+
+      <!-- Tableau Ranked -->
       <div class="feed-card" style="margin-bottom:20px">
         <div class="feed-header" style="display: flex; justify-content: space-between; align-items: center;">
           <span>⚔️ Classement Classé (1v1) — Top 100 Officiel</span>
-          <button onclick="loadRankedLeaderboard(true)" style="background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Actualiser</button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="ranked-last-update" style="font-size:12px;color:var(--muted)"></span>
+            <button onclick="loadRankedLeaderboard(true)" style="background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Actualiser</button>
+          </div>
         </div>
         <div class="table-container">
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border); color: var(--text3);">
-                <th style="padding: 12px 8px; width: 60px;">Rang</th>
+                <th style="padding: 12px 8px; width: 50px;">Rang</th>
                 <th style="padding: 12px 8px;">Joueur</th>
-                <th style="padding: 12px 8px;">Elo</th>
-                <th style="padding: 12px 8px;">Winrate</th>
-                <th style="padding: 12px 8px;">V - D</th>
-                <th style="padding: 12px 8px;">Total</th>
+                <th style="padding: 12px 8px; width: 70px;">Elo</th>
+                <th style="padding: 12px 8px; width: 70px;">Peak</th>
+                <th style="padding: 12px 8px; width: 70px;">Winrate</th>
+                <th style="padding: 12px 8px; width: 80px;">V - D</th>
+                <th style="padding: 12px 8px; width: 60px;">Total</th>
+                <th style="padding: 12px 8px; width: 50px;">MV</th>
               </tr>
             </thead>
             <tbody id="ranked-list">
-              <tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>
+              <tr><td colspan="8" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Distribution Elo + Clans -->
+      <div class="chart-grid" style="margin-bottom:20px">
+        <div class="chart-card">
+          <div class="chart-head">📊 Distribution des Elo</div>
+          <div class="chart-body" id="ranked-elo-dist"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head">🏰 Classement des Clans</div>
+          <div class="chart-body" id="ranked-clan-list">
+            <div class="loading">Chargement...</div>
+          </div>
         </div>
       </div>
     </div>
@@ -300,6 +349,21 @@
     <div class="modal-section">
       <div class="modal-section-title">Performances par carte</div>
       <div class="player-runs" id="modal-runs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Ranked Player Modal (Match History) -->
+<div class="modal-overlay" id="ranked-player-modal" onclick="closeRankedModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeRankedModal()">&times;</button>
+    <div class="modal-header">
+      <div class="modal-title" id="ranked-modal-player-name">Joueur</div>
+      <div class="modal-subtitle" id="ranked-modal-player-stats">Elo: — · 0 wins · 0 losses</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Historique 1v1 récent</div>
+      <div id="ranked-modal-games" style="max-height:400px;overflow-y:auto"></div>
     </div>
   </div>
 </div>
@@ -355,7 +419,7 @@
 <script src="i18n.js"></script>
 <script src="toast.js" defer></script>
 <script src="animations.js" defer></script>
-<script src="app.js?v=25" type="module"></script>
+<script src="app.js?v=26" type="module"></script>
 
 
 <script>

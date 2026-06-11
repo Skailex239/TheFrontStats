@@ -60,19 +60,44 @@ async function fetchLeaderboard() {
   return allPlayers;
 }
 
-function save(data) {
+function saveWithMovement(players) {
+  // Charger l'ancien classement pour calculer les mouvements
+  let previousById = new Map();
+  try {
+    const oldRaw = fs.readFileSync("ranked.json", "utf8");
+    const oldData = JSON.parse(oldRaw);
+    const oldPlayers = oldData["1v1"] || [];
+    oldPlayers.forEach(p => {
+      if (p.public_id) previousById.set(p.public_id, p.rank);
+    });
+    console.log(`[ranked-sync] 📊 Ancien classement chargé: ${oldPlayers.length} joueurs`);
+  } catch (e) {
+    console.log("[ranked-sync] ℹ️ Pas d'ancien classement, mouvements non calculés");
+  }
+
+  // Ajouter movement (ancien rang - nouveau rang)
+  // > 0 = monté, < 0 = descendu, 0 = inchangé
+  const enriched = players.map(p => {
+    const prevRank = previousById.get(p.public_id);
+    const movement = prevRank != null ? prevRank - p.rank : null;
+    return { ...p, movement };
+  });
+
   const payload = {
-    "1v1": data,
+    "1v1": enriched,
     updatedAt: new Date().toISOString(),
-    totalPlayers: data.length,
+    totalPlayers: enriched.length,
   };
   const json = JSON.stringify(payload);
   fs.writeFileSync("ranked.json", json);
   fs.writeFileSync("ranked.json.gz", zlib.gzipSync(json));
+  
+  const movements = enriched.filter(p => p.movement != null && p.movement !== 0).length;
   console.log(
-    `[ranked-sync] 💾 ${data.length} joueurs sauvegardés — ` +
+    `[ranked-sync] 💾 ${enriched.length} joueurs sauvegardés — ` +
       `${(json.length / 1024).toFixed(0)} KB raw / ` +
-      `${(zlib.gzipSync(json).length / 1024).toFixed(0)} KB gz`
+      `${(zlib.gzipSync(json).length / 1024).toFixed(0)} KB gz ` +
+      `(${movements} mouvements détectés)`
   );
 }
 
@@ -86,7 +111,7 @@ async function main() {
     );
   }
   const players = await fetchLeaderboard();
-  save(players);
+  saveWithMovement(players);
   console.log("[ranked-sync] ✅ Terminé.");
 }
 

@@ -1688,7 +1688,8 @@ function renderClanLeaderboard(players) {
   
   const sorted = Object.values(clans)
     .map(c => ({ ...c, avgElo: Math.round(c.totalElo / c.members) }))
-    .sort((a, b) => b.avgElo - a.avgElo)
+    .filter(c => c.members >= 2)
+    .sort((a, b) => b.avgElo - a.avgElo || b.members - a.members)
     .slice(0, 10);
   
   if (sorted.length === 0) {

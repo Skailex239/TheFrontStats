@@ -1470,3 +1470,56 @@ window.toggleUserDropdown = toggleUserDropdown;
 window.closeUserDropdown = closeUserDropdown;
 window.goToProfilePage = goToProfilePage;
 window.mockLogin = mockLogin;
+
+
+// ====== RANKED LEADERBOARD ======
+async function loadRankedLeaderboard(force = false) {
+  const container = document.getElementById('ranked-list');
+  if (!container) return;
+  if (!force && window._rankedLoaded) return;
+  
+  container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
+  
+  try {
+    const page1 = await fetch('https://api.openfront.io/leaderboard/ranked?page=1').then(r => r.json());
+    const page2 = await fetch('https://api.openfront.io/leaderboard/ranked?page=2').then(r => r.json());
+    
+    let players = [];
+    if (page1['1v1']) players.push(...page1['1v1']);
+    if (page2['1v1']) players.push(...page2['1v1']);
+    
+    if (players.length === 0) {
+      container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Aucun joueur classé pour le moment.</td></tr>';
+      return;
+    }
+    
+    let html = '';
+    players.forEach(p => {
+      const winrate = p.total > 0 ? ((p.wins / p.total) * 100).toFixed(1) : 0;
+      const publicIdParam = p.public_id ? `&publicId=${p.public_id}` : '';
+      
+      html += `
+        <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='transparent'">
+          <td style="padding: 12px 8px; font-weight: bold; color: ${p.rank <= 3 ? 'var(--accent)' : 'var(--text)'};">#${p.rank}</td>
+          <td style="padding: 12px 8px;">
+            <a href="profile.html?player=${encodeURIComponent(p.username)}${publicIdParam}" style="color: var(--text); text-decoration: none; font-weight: 500;">
+              ${p.clanTag ? `<span style="color:var(--text3);font-size:0.9em;margin-right:4px;">[${p.clanTag}]</span>` : ''}${p.username}
+            </a>
+          </td>
+          <td style="padding: 12px 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent);">${p.elo}</td>
+          <td style="padding: 12px 8px; font-weight: 500;">${winrate}%</td>
+          <td style="padding: 12px 8px; color: var(--text2);"><span style="color:#10b981">${p.wins}</span> - <span style="color:#ef4444">${p.losses}</span></td>
+          <td style="padding: 12px 8px; color: var(--text3);">${p.total}</td>
+        </tr>
+      `;
+    });
+    
+    container.innerHTML = html;
+    window._rankedLoaded = true;
+    
+  } catch (err) {
+    console.error("Erreur Ranked:", err);
+    container.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #ef4444;">Erreur lors du chargement du classement.</td></tr>`;
+  }
+}
+window.loadRankedLeaderboard = loadRankedLeaderboard;

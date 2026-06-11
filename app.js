@@ -1484,32 +1484,26 @@ async function loadRankedLeaderboard(force = false) {
   container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
   
   try {
-    console.log('[Ranked] Fetching leaderboard...');
+    console.log('[Ranked] Loading leaderboard...');
     
-    const proxy = 'https://corsproxy.io/?';
-    const [res1, res2] = await Promise.all([
-      fetch(proxy + encodeURIComponent('https://api.openfront.io/leaderboard/ranked?page=1'), {
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store'
-      }),
-      fetch(proxy + encodeURIComponent('https://api.openfront.io/leaderboard/ranked?page=2'), {
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store'
-      })
-    ]);
-
-    console.log('[Ranked] Response status:', res1.status, res2.status);
-
-    if (!res1.ok || !res2.ok) {
-      throw new Error(`HTTP error: ${res1.status} / ${res2.status}`);
+    let data;
+    try {
+      const gzRes = await fetch('ranked.json.gz', { cache: 'no-store' });
+      if (gzRes.ok) {
+        const ds = new DecompressionStream('gzip');
+        const decompressed = gzRes.body.pipeThrough(ds);
+        data = await new Response(decompressed).json();
+      } else {
+        throw new Error('gz not available');
+      }
+    } catch (e) {
+      const plainRes = await fetch('ranked.json', { cache: 'no-store' });
+      if (!plainRes.ok) throw new Error('Impossible de charger le classement');
+      data = await plainRes.json();
     }
-
-    const page1 = await res1.json();
-    const page2 = await res2.json();
     
     let players = [];
-    if (page1['1v1']) players.push(...page1['1v1']);
-    if (page2['1v1']) players.push(...page2['1v1']);
+    if (data['1v1']) players.push(...data['1v1']);
     
     console.log('[Ranked] Players loaded:', players.length);
     

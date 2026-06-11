@@ -491,112 +491,149 @@ async function switchMode(mode) {
   console.log(`[TheFrontStats] 🔄 Mode changé: ${mode}`);
 }
 
+
+const localDB = {
+  db: null,
+  async init() {
+    if (!window.indexedDB) return;
+    return new Promise((resolve) => {
+      const req = indexedDB.open("TheFrontStatsDB", 1);
+      req.onupgradeneeded = (e) => e.target.result.createObjectStore("cache");
+      req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+      req.onerror = () => resolve();
+    });
+  },
+  async get(key) {
+    if (!this.db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction("cache", "readonly");
+        const req = tx.objectStore("cache").get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch(e) { resolve(null); }
+    });
+  },
+  async set(key, val) {
+    if (!this.db) return;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction("cache", "readwrite");
+        tx.objectStore("cache").put(val, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch(e) { resolve(); }
+    });
+  }
+};
+localDB.init(); // Démarre en arrière-plan
+
+function applyPayloadData(data, isBackground = false) {
+  window.apiMapTotals = {};
+  let apiMapTotals = window.apiMapTotals;
+  const compact = decodeCompactPayload(data);
+  if (compact) {
+    allRuns = compact.runs;
+    _rawRuns = allRuns;
+    totalRunsCount = compact.totalCount || allRuns.length;
+    gameCommit = compact.latestCommit;
+    lastSyncTime = compact.lastUpdate;
+    window.apiMapTotals = compact.mapTotals || {};
+  } else if (data.runs && Array.isArray(data.runs)) {
+    allRuns = data.runs;
+    _rawRuns = allRuns;
+    totalRunsCount = data.totalCount || allRuns.length;
+    gameCommit = data.latestCommit;
+    lastSyncTime = data.lastUpdate;
+  } else if (Array.isArray(data)) {
+    allRuns = data;
+    _rawRuns = allRuns;
+    totalRunsCount = allRuns.length;
+  } else {
+    return false;
+  }
+  
+  processData();
+  renderAll();
+  updateStats();
+  
+  if (!activeMap && allMaps.length) selectMap(allMaps[0].map);
+  
+  if (isBackground) {
+    const badge = document.getElementById('refresh-badge');
+    if(badge) badge.style.display='inline-block';
+  }
+  return true;
+}
+
 async function loadData(){
-  const t0=performance.now();
+    const t0=performance.now();
   console.time('loadData');
   const dataFile = getDataFileGz();
-  const dataFilePlain = getDataFile();
   const fallbackGz = getDataFileGzFallback();
+  const dataFilePlain = getDataFile();
   const fallbackPlain = getDataFileFallback();
+  const modeKey = 'cache_data_' + currentMode;
+  
   console.log(`[TheFrontStats] ⏳ Chargement des données (${currentMode})...`);
   showProgressBar();
-  try{
-    setProgressBar(5);
-    let runsRes = await fetch(dataFile, { cache: 'no-store' });
-
-    setProgressBar(15);
-
-    // Fallback to full data files if public payload doesn't exist (old deployment)
-    if (!runsRes.ok) {
-      console.warn(`[TheFrontStats] ⚠️ ${dataFile} non trouvé, fallback sur ${fallbackGz}`);
-      runsRes = await fetch(fallbackGz, { cache: 'no-store' });
+  setProgressBar(10);
+  
+  try {
+    // 1. Essayer de charger depuis IndexedDB (Instantané)
+    const cachedData = await localDB.get(modeKey);
+    if (cachedData) {
+      console.log('[TheFrontStats] ⚡ Données affichées depuis le cache local !');
+      applyPayloadData(cachedData, false);
+      setProgressBar(50);
+      hideProgressBar();
     }
-
-    if (!runsRes.ok) {
-      throw new Error("Impossible de récupérer les données");
-    }
-
-    // Décompression native GZIP (DecompressionStream)
+    
+    // 2. Fetch réseau en arrière-plan (sans 'no-store' pour utiliser le cache HTTP 304 du navigateur)
+    let runsRes = await fetch(dataFile);
+    if (!runsRes.ok) runsRes = await fetch(fallbackGz);
+    if (!runsRes.ok) throw new Error("Impossible de récupérer les données");
+    
     let data;
     try {
-      console.log('[TheFrontStats] 📦 Décompression GZIP...');
-      setProgressBar(30);
       const ds = new DecompressionStream("gzip");
       const decompressedStream = runsRes.body.pipeThrough(ds);
       data = await new Response(decompressedStream).json();
     } catch(e) {
-      console.warn("[app] Fallback sur fichier non compressé", e);
-      const fallbackRes = await fetch(dataFilePlain, { cache: 'no-store' });
-      if (!fallbackRes.ok) {
-        // Try full file fallback
-        const fbRes = await fetch(fallbackPlain, { cache: 'no-store' });
-        if (!fbRes.ok) throw new Error("Impossible de récupérer les données");
-        data = await fbRes.json();
-      } else {
-        data = await fallbackRes.json();
-      }
-    }
-
-    console.log('[TheFrontStats] 🔍 Parsing des données...');
-    setProgressBar(50);
-
-    // Decode compact format if present (before existing format detection)
-    window.apiMapTotals = {};
-    let apiMapTotals = window.apiMapTotals;
-    const compact = decodeCompactPayload(data);
-    if (compact) {
-      allRuns = compact.runs;
-      _rawRuns = allRuns;
-      totalRunsCount = compact.totalCount || allRuns.length;
-      gameCommit = compact.latestCommit;
-      lastSyncTime = compact.lastUpdate;
-      apiMapTotals = compact.mapTotals || {};
-      console.log("Données décompactées:", { 
-        totalCount: totalRunsCount, 
-        runsLength: allRuns.length
-      });
-    } else if (data.runs && Array.isArray(data.runs)) {
-      // Support de l'ancien format (objet {runs, totalCount})
-      allRuns = data.runs;
-      _rawRuns = allRuns;
-      totalRunsCount = data.totalCount || allRuns.length;
-      gameCommit = data.latestCommit;
-      lastSyncTime = data.lastUpdate;
-      console.log("Données reçues:", { 
-        totalCount: data.totalCount, 
-        runsLength: data.runs.length
-      });
-    } else if (Array.isArray(data)) {
-      allRuns = data;
-      _rawRuns = allRuns;
-      totalRunsCount = allRuns.length;
-    } else {
-      throw new Error("Format de données invalide");
+      const fbRes = await fetch(dataFilePlain);
+      data = fbRes.ok ? await fbRes.json() : await (await fetch(fallbackPlain)).json();
     }
     
-    console.log(`[TheFrontStats] ⚙️ Traitement de ${allRuns.length} runs (${currentMode})...`);
-    setProgressBar(65);
-    processData();
-    setProgressBar(80);
-    console.log('[TheFrontStats] 🎨 Rendu...');
-    renderAll();
-    if (!activeMap && allMaps.length) {
-      selectMap(allMaps[0].map);
+    // Vérifier si la donnée réseau est plus récente que le cache
+    const isNew = !cachedData || (data.u && data.u !== cachedData.u) || (data.lastUpdate && data.lastUpdate !== cachedData.lastUpdate);
+                  
+    if (isNew) {
+      console.log('[TheFrontStats] 🔄 Nouvelles données récupérées depuis le serveur.');
+      await localDB.set(modeKey, data);
+      applyPayloadData(data, !!cachedData); // Affiche le badge si mis à jour en background
+    } else {
+      console.log('[TheFrontStats] ✅ Données déjà à jour.');
     }
 
     if(refreshInterval) clearInterval(refreshInterval);
     refreshInterval=setInterval(autoRefresh, 180000);
+    
     hideProgressBar();
     const elapsed=((performance.now()-t0)/1000).toFixed(1);
-    console.log(`[TheFrontStats] ✅ Chargé en ${elapsed}s — ${allRuns.length} runs, ${allMaps.length} maps (${currentMode})`);
-    console.log(`[TheFrontStats] 🔄 Auto-sync ACTIF — rafraîchissement toutes les 3min`);
+    console.log(`[TheFrontStats] ✅ Processus terminé en ${elapsed}s`);
     console.timeEnd('loadData');
-  }catch(e){
+
+  } catch(e) {
     console.error("Erreur critique chargement:", e);
-    showToast("Erreur de chargement des données. Vérifiez votre connexion.", "error", 6000);
+    showToast("Mode hors-ligne : données réseau inaccessibles.", "warning", 6000);
     hideProgressBar();
-    const modeLabel = currentMode === 'compact' ? 'compact' : 'normal';
-    document.getElementById("map-list").innerHTML=`<div class="error">Erreur: ${e.message}<br><small>Aucune donnée ${modeLabel} disponible pour le moment.</small></div>`;
+    
+    // Si on a pas de cache du tout, on affiche une erreur fatale
+    const cachedData = await localDB.get(modeKey);
+    if (!cachedData) {
+      const modeLabel = currentMode === 'compact' ? 'compact' : 'normal';
+      document.getElementById("map-list").innerHTML=`<div class="error">Erreur: ${e.message}<br><small>Aucune donnée ${modeLabel} disponible pour le moment.</small></div>`;
+    }
   }
 }
 

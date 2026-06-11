@@ -53,6 +53,9 @@
       <a class="nav-item tab-btn" id="tab-btn-global" onclick="switchTab('global',this);document.getElementById('topbar-title').textContent='Classements'">
         🏆 Classements
       </a>
+      <a class="nav-item tab-btn" id="tab-btn-ranked" onclick="switchTab('ranked',this);document.getElementById('topbar-title').textContent='Classé (1v1)'">
+        ⚔️ Classé (1v1)
+      </a>
       <a class="nav-item tab-btn" id="tab-btn-stats" onclick="switchTab('stats',this);document.getElementById('topbar-title').textContent='Statistiques'">
         📊 Statistiques
       </a>
@@ -234,6 +237,32 @@
     </div>
 
     <!-- ═══ TAB: Stats ═══ -->
+    <div class="tab-content" id="tab-ranked">
+      <div class="feed-card" style="margin-bottom:20px">
+        <div class="feed-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>⚔️ Classement Classé (1v1) — Top 100 Officiel</span>
+          <button onclick="loadRankedLeaderboard(true)" style="background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Actualiser</button>
+        </div>
+        <div class="table-container">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border); color: var(--text3);">
+                <th style="padding: 12px 8px; width: 60px;">Rang</th>
+                <th style="padding: 12px 8px;">Joueur</th>
+                <th style="padding: 12px 8px;">Elo</th>
+                <th style="padding: 12px 8px;">Winrate</th>
+                <th style="padding: 12px 8px;">V - D</th>
+                <th style="padding: 12px 8px;">Total</th>
+              </tr>
+            </thead>
+            <tbody id="ranked-list">
+              <tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-content" id="tab-stats">
       <div class="chart-grid">
         <div class="chart-card">

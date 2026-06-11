@@ -507,6 +507,10 @@ async function refreshProfile() {
   renderStatsRow(sessions);
   renderMonthlyChart(sessions);
   renderRecentGames(sessions);
+  
+  if (currentUser && currentUser.publicId) {
+    loadRankedGames(currentUser.publicId, "profile-ranked-games");
+  }
 }
 
 /**
@@ -981,7 +985,7 @@ document.addEventListener("click", (e) => {
 
 /* ── Public profile viewer (when ?player=Name is in URL) ── */
 
-async function showPublicProfile(targetName) {
+async function showPublicProfile(targetName, publicId = null) {
   const loadingEl = document.getElementById("profile-loading");
   const viewerEl = document.getElementById("profile-public-viewer");
   if (!viewerEl || !loadingEl) return;
@@ -1055,6 +1059,12 @@ async function showPublicProfile(targetName) {
     document.getElementById("public-stat-maps").textContent = String(target.maps.size);
     document.getElementById("public-stat-global-rank").textContent = rank > 0 ? "#" + rank : "\u2014";
 
+    if (publicId) {
+      loadRankedGames(publicId, "public-ranked-games");
+    } else {
+      document.getElementById("public-ranked-games").innerHTML = '<div style="padding:12px;color:var(--text3);text-align:center;">ID non fourni pour ce joueur. Allez sur le leaderboard classé !</div>';
+    }
+
     // Recent games (last 10)
     const recent = target.runs.slice(-10).reverse();
     document.getElementById("public-recent-games").innerHTML = recent.map(function(r) {
@@ -1081,8 +1091,9 @@ async function showPublicProfile(targetName) {
 (function() {
   const params = new URLSearchParams(window.location.search);
   const targetPlayer = params.get("player");
+  const targetId = params.get("publicId");
   if (targetPlayer) {
-    showPublicProfile(targetPlayer);
+    showPublicProfile(targetPlayer, targetId);
   }
 })();
 
@@ -1159,3 +1170,75 @@ onAuthStateChanged(auth, async (user) => {
     showProfileView("profile-main");
   }
 });
+
+
+// ====== RANKED GAMES RENDERER ======
+async function loadRankedGames(publicId, containerId, myClientIdHint = null) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  if (!publicId) {
+    box.innerHTML = `<div style="padding:12px;color:var(--text3);text-align:center;">Public ID inconnu — impossible de charger l'historique classé.</div>`;
+    return;
+  }
+  
+  box.innerHTML = `<div class="loading">Chargement classé...</div>`;
+  
+  try {
+    const pRes = await fetch(`https://api.openfront.io/player/${publicId}`);
+    if (!pRes.ok) throw new Error("Joueur introuvable");
+    const pData = await pRes.json();
+    
+    if (!pData.games || pData.games.length === 0) {
+      box.innerHTML = `<div style="padding:12px;color:var(--text3);text-align:center;">Aucune partie classée récente.</div>`;
+      return;
+    }
+    
+    // Filter for ranked 1v1
+    const rankedGames = pData.games.filter(g => g.rankedType === "1v1").reverse().slice(0, 5);
+    if (rankedGames.length === 0) {
+      box.innerHTML = `<div style="padding:12px;color:var(--text3);text-align:center;">Aucun 1v1 classé récent.</div>`;
+      return;
+    }
+    
+    let html = "";
+    for (const g of rankedGames) {
+      try {
+        const gRes = await fetch(`https://api.openfront.io/public/game/${g.gameId}?turns=false`);
+        if (!gRes.ok) continue;
+        const gInfo = (await gRes.json()).info;
+        
+        let opponent = "Inconnu";
+        let won = false;
+        
+        if (gInfo && gInfo.players) {
+          const others = gInfo.players.filter(pl => pl.clientID !== g.clientId);
+          if (others.length > 0) opponent = others[0].username || "Inconnu";
+          
+          if (gInfo.winner && Array.isArray(gInfo.winner) && gInfo.winner[1] === g.clientId) {
+            won = true;
+          }
+        }
+        
+        const mapName = g.map || "—";
+        const date = new Date(g.start).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+        const url = `https://openfront.io/game/${g.gameId}`;
+        
+        html += `
+          <a class="pf-game" href="${url}" target="_blank" rel="noopener">
+            <div class="pf-game-icon ${won ? "won" : "lost"}">${won ? "W" : "L"}</div>
+            <div class="pf-game-body">
+              <div class="pf-game-map">vs <span style="font-weight:600; color:var(--text);">${opponent}</span></div>
+              <div class="pf-game-meta">${mapName} · ${date}</div>
+            </div>
+            <div class="pf-game-link">▶</div>
+          </a>
+        `;
+      } catch (e) { console.warn("Erreur fetch game", e); }
+    }
+    
+    box.innerHTML = html || `<div style="padding:12px;color:var(--text3);text-align:center;">Aucun détail de partie disponible.</div>`;
+  } catch (err) {
+    console.error("Erreur loadRankedGames:", err);
+    box.innerHTML = `<div style="padding:12px;color:#ef4444;text-align:center;">Erreur API OpenFront.</div>`;
+  }
+}

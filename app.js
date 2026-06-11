@@ -1358,6 +1358,7 @@ function closeModal(e){
   updateURL();
 }
 function switchTab(name,btn){
+  if (name === 'ranked') loadRankedLeaderboard();
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   const currentActive = document.querySelector('.tab-content.active');
   if (currentActive) {

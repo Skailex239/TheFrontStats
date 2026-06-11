@@ -1486,12 +1486,13 @@ async function loadRankedLeaderboard(force = false) {
   try {
     console.log('[Ranked] Fetching leaderboard...');
     
+    const proxy = 'https://corsproxy.io/?';
     const [res1, res2] = await Promise.all([
-      fetch('https://api.openfront.io/leaderboard/ranked?page=1', {
+      fetch(proxy + encodeURIComponent('https://api.openfront.io/leaderboard/ranked?page=1'), {
         headers: { 'Accept': 'application/json' },
         cache: 'no-store'
       }),
-      fetch('https://api.openfront.io/leaderboard/ranked?page=2', {
+      fetch(proxy + encodeURIComponent('https://api.openfront.io/leaderboard/ranked?page=2'), {
         headers: { 'Accept': 'application/json' },
         cache: 'no-store'
       })

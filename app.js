@@ -883,7 +883,9 @@ function processData(){
   allMaps = Object.values(ms).sort((a,b) => a.map.localeCompare(b.map));
   allMaps.forEach(m => {
     m.runs.sort((a,b) => a.duration_s - b.duration_s);
-    m.total = window.apiMapTotals[m.map] || m.total; // OVERRIDE THE TOTAL
+    if (window.apiMapTotals && window.apiMapTotals[m.map]) {
+        m.total = window.apiMapTotals[m.map];
+    }
   });
   
   allMaps.forEach(m => {

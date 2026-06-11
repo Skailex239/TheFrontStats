@@ -1544,6 +1544,7 @@ async function loadRankedLeaderboard(force = false) {
     
     // Render table
     renderRankedTable(players);
+    renderMyRank(players);
     
     window._rankedLoaded = true;
     console.log('[Ranked] Tableau rendu avec succès');
@@ -1605,7 +1606,7 @@ function renderRankedTable(players) {
       : `${p.peakElo || p.elo}`;
     
     html += `
-      <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;" 
+      <tr data-pid="${esc(p.public_id)}" style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;" 
           onmouseover="this.style.background='var(--bg2)'" 
           onmouseout="this.style.background='transparent'"
           onclick="showRankedPlayerModal('${esc(p.public_id)}', '${esc(p.username)}')">
@@ -1626,6 +1627,70 @@ function renderRankedTable(players) {
   });
   
   container.innerHTML = html;
+}
+
+function renderMyRank(players) {
+  const container = document.getElementById('my-ranked-position');
+  if (!container) return;
+  
+  // Check if user is logged in and has a publicId
+  if (!currentUser || !currentUser.publicId) {
+    container.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)">
+        <span>👤</span>
+        <span>Connecte-toi et lie ton <b>Public ID OpenFront</b> pour voir ta position dans le classement.</span>
+      </div>
+    `;
+    return;
+  }
+  
+  const myPid = currentUser.publicId;
+  const me = players.find(p => p.public_id === myPid);
+  
+  if (!me) {
+    container.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)">
+        <span>🌍</span>
+        <span>Tu n'es pas dans le <b>Top 100</b> actuel. Continue à grind !</span>
+      </div>
+    `;
+    return;
+  }
+  
+  const winrate = me.total > 0 ? ((me.wins / me.total) * 100).toFixed(1) : 0;
+  const wrColor = getWinrateColor(parseFloat(winrate));
+  const move = me.movement != null ? (me.movement > 0 ? `↑${me.movement}` : me.movement < 0 ? `↓${Math.abs(me.movement)}` : '—') : '—';
+  const moveColor = me.movement > 0 ? '#10b981' : me.movement < 0 ? '#ef4444' : 'var(--muted)';
+  
+  container.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">${me.rank}</div>
+        <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <div style="font-weight:700;font-size:14px;color:var(--text)">${esc(currentUser.name || me.username)}</div>
+          <div style="font-size:12px;color:var(--muted)">
+            <b style="color:var(--accent)">${me.elo}</b> Elo · 
+            <b style="color:${wrColor}">${winrate}%</b> WR · 
+            <b style="color:${moveColor}">${move}</b> MV · 
+            ${me.wins}V - ${me.losses}D
+          </div>
+        </div>
+      </div>
+      <button onclick="scrollToMyRank('${esc(myPid)}')" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.2s;white-space:nowrap" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        🎯 Me trouver
+      </button>
+    </div>
+  `;
+}
+
+function scrollToMyRank(publicId) {
+  const rows = document.querySelectorAll('#ranked-list tr[data-pid]');
+  let row = null;
+  rows.forEach(r => { if (r.getAttribute('data-pid') === publicId) row = r; });
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.style.background = 'var(--bg2)';
+  setTimeout(() => { row.style.background = ''; }, 2000);
 }
 
 function filterRanked(query) {
@@ -1814,4 +1879,6 @@ function closeRankedModal(e) {
 window.loadRankedLeaderboard = loadRankedLeaderboard;
 window.filterRanked = filterRanked;
 window.showRankedPlayerModal = showRankedPlayerModal;
+window.renderMyRank = renderMyRank;
+window.scrollToMyRank = scrollToMyRank;
 window.closeRankedModal = closeRankedModal;

@@ -1475,22 +1475,42 @@ window.mockLogin = mockLogin;
 // ====== RANKED LEADERBOARD ======
 async function loadRankedLeaderboard(force = false) {
   const container = document.getElementById('ranked-list');
-  if (!container) return;
+  if (!container) {
+    console.warn('[Ranked] Container #ranked-list introuvable');
+    return;
+  }
   if (!force && window._rankedLoaded) return;
   
   container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
   
   try {
-    const page1 = await fetch('https://api.openfront.io/leaderboard/ranked?page=1', {
-      headers: { 'Accept': 'application/json' }
-    }).then(r => r.json());
-    const page2 = await fetch('https://api.openfront.io/leaderboard/ranked?page=2', {
-      headers: { 'Accept': 'application/json' }
-    }).then(r => r.json());
+    console.log('[Ranked] Fetching leaderboard...');
+    
+    const [res1, res2] = await Promise.all([
+      fetch('https://api.openfront.io/leaderboard/ranked?page=1', {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      }),
+      fetch('https://api.openfront.io/leaderboard/ranked?page=2', {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      })
+    ]);
+
+    console.log('[Ranked] Response status:', res1.status, res2.status);
+
+    if (!res1.ok || !res2.ok) {
+      throw new Error(`HTTP error: ${res1.status} / ${res2.status}`);
+    }
+
+    const page1 = await res1.json();
+    const page2 = await res2.json();
     
     let players = [];
     if (page1['1v1']) players.push(...page1['1v1']);
     if (page2['1v1']) players.push(...page2['1v1']);
+    
+    console.log('[Ranked] Players loaded:', players.length);
     
     if (players.length === 0) {
       container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Aucun joueur classé pour le moment.</td></tr>';
@@ -1520,9 +1540,10 @@ async function loadRankedLeaderboard(force = false) {
     
     container.innerHTML = html;
     window._rankedLoaded = true;
+    console.log('[Ranked] Tableau rendu avec succès');
     
   } catch (err) {
-    console.error("Erreur Ranked:", err);
+    console.error("[Ranked] Erreur complète:", err);
     container.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: #ef4444;">Erreur lors du chargement du classement.</td></tr>`;
   }
 }

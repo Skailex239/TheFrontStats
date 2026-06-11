@@ -239,11 +239,56 @@ function renderStatsRow(sessions) {
     }
   }
 
+  // --- NOUVELLES STATS ---
+  let totalPlayTimeSecs = 0;
+  let totalWinTimeSecs = 0;
+  const mapCounts = {};
+
+  sessions.forEach(s => {
+    let dur = 0;
+    if (s.start && s.end) {
+      dur = Math.round((new Date(s.end).getTime() - new Date(s.start).getTime()) / 1000);
+    } else if (s.duration) {
+      dur = s.duration > 100000 ? Math.round(s.duration / 1000) : s.duration;
+    }
+    if (dur > 0) totalPlayTimeSecs += dur;
+    
+    if (s.hasWon) {
+      if (dur > 0) totalWinTimeSecs += dur;
+      if (s.map) {
+        mapCounts[s.map] = (mapCounts[s.map] || 0) + 1;
+      }
+    }
+  });
+
+  let favMap = "—";
+  let maxWins = 0;
+  for (let m in mapCounts) {
+    if (mapCounts[m] > maxWins) {
+      maxWins = mapCounts[m];
+      favMap = m;
+    }
+  }
+
+  let playTimeHours = Math.round(totalPlayTimeSecs / 3600);
+  let avgWinTimeSecs = totalWins > 0 ? Math.round(totalWinTimeSecs / totalWins) : 0;
+  
+  // Fonction utilitaire locale pour formater le temps si elle n'est pas dispo globalement
+  const formatSecs = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = String(secs % 60).padStart(2, "0");
+    return `${m}m${s}s`;
+  };
+
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set("profile-stat-wins", String(totalWins));
-  set("profile-stat-sessions", String(sessions.length));
+  set("profile-stat-sessions", String(sessions.length)); // On laisse au cas où, ou on l'écrase
   set("profile-stat-maps", String(maps.size));
   set("profile-stat-global-rank", rank > 0 ? `#${rank}` : "—");
+  
+  set("profile-stat-playtime", playTimeHours + "h");
+  set("profile-stat-favmap", favMap);
+  set("profile-stat-avgtime", avgWinTimeSecs > 0 ? formatSecs(avgWinTimeSecs) : "—");
 }
 
 /* ── Render: Monthly wins chart ── */

@@ -161,7 +161,12 @@ function saveRuns(runs) {
   // Uses compact array format to minimize size
   try {
     const byMap = {};
-    runs.forEach(r => { if (!byMap[r.map]) byMap[r.map] = []; byMap[r.map].push(r); });
+    const mapTotals = {}; // NEW: Store true count of runs per map
+    runs.forEach(r => { 
+      if (!byMap[r.map]) byMap[r.map] = []; 
+      byMap[r.map].push(r); 
+      mapTotals[r.map] = (mapTotals[r.map] || 0) + 1;
+    });
     const topPerMap = [];
     Object.entries(byMap).forEach(([map, mapRuns]) => {
       mapRuns.sort((a, b) => a.duration_s - b.duration_s);
@@ -183,6 +188,7 @@ function saveRuns(runs) {
       t: meta.totalCount,
       u: meta.lastUpdate,
       c: meta.latestCommit,
+      m: mapTotals, // NEW: Include map totals in the payload
       k: ['id', 'player', 'playerId', 'map', 'duration_s', 'difficulty', 'bots', 'players', 'timestamp'],
       r: merged.map(r => [r.id, r.player, r.playerId || '', r.map, r.duration_s, r.difficulty || '', r.bots || 0, r.players || 0, r.timestamp])
     };

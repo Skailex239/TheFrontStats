@@ -444,7 +444,7 @@ function decodeCompactPayload(data) {
       keys.forEach((k, i) => { obj[k] = row[i]; });
       return obj;
     });
-    return { runs, totalCount: data.t, lastUpdate: data.u, latestCommit: data.c };
+    return { runs, totalCount: data.t, lastUpdate: data.u, latestCommit: data.c, mapTotals: data.m || {} };
   }
   return null;
 }
@@ -541,6 +541,8 @@ async function loadData(){
     setProgressBar(50);
 
     // Decode compact format if present (before existing format detection)
+    window.apiMapTotals = {};
+    let apiMapTotals = window.apiMapTotals;
     const compact = decodeCompactPayload(data);
     if (compact) {
       allRuns = compact.runs;
@@ -548,6 +550,7 @@ async function loadData(){
       totalRunsCount = compact.totalCount || allRuns.length;
       gameCommit = compact.latestCommit;
       lastSyncTime = compact.lastUpdate;
+      apiMapTotals = compact.mapTotals || {};
       console.log("Données décompactées:", { 
         totalCount: totalRunsCount, 
         runsLength: allRuns.length
@@ -841,7 +844,10 @@ function processData(){
   });
 
   allMaps = Object.values(ms).sort((a,b) => a.map.localeCompare(b.map));
-  allMaps.forEach(m => m.runs.sort((a,b) => a.duration_s - b.duration_s));
+  allMaps.forEach(m => {
+    m.runs.sort((a,b) => a.duration_s - b.duration_s);
+    m.total = window.apiMapTotals[m.map] || m.total; // OVERRIDE THE TOTAL
+  });
   
   allMaps.forEach(m => {
     m.runs.forEach((r,i) => {

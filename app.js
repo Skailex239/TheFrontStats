@@ -1481,8 +1481,12 @@ async function loadRankedLeaderboard(force = false) {
   container.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
   
   try {
-    const page1 = await fetch('https://api.openfront.io/leaderboard/ranked?page=1').then(r => r.json());
-    const page2 = await fetch('https://api.openfront.io/leaderboard/ranked?page=2').then(r => r.json());
+    const page1 = await fetch('https://api.openfront.io/leaderboard/ranked?page=1', {
+      headers: { 'Accept': 'application/json' }
+    }).then(r => r.json());
+    const page2 = await fetch('https://api.openfront.io/leaderboard/ranked?page=2', {
+      headers: { 'Accept': 'application/json' }
+    }).then(r => r.json());
     
     let players = [];
     if (page1['1v1']) players.push(...page1['1v1']);

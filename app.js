@@ -1545,6 +1545,7 @@ async function loadRankedLeaderboard(force = false) {
     // Render table
     renderRankedTable(players);
     renderMyRank(players);
+    renderNewcomersDropouts(data);
     
     window._rankedLoaded = true;
     console.log('[Ranked] Tableau rendu avec succès');
@@ -1635,6 +1636,45 @@ function renderRankedTable(players) {
   });
   
   container.innerHTML = html;
+}
+
+function renderNewcomersDropouts(data) {
+  const newcomers = data.newcomers || [];
+  const dropouts = data.dropouts || [];
+  
+  const newCard = document.getElementById('newcomers-card');
+  const dropCard = document.getElementById('dropouts-card');
+  const newEl = document.getElementById('ranked-newcomers');
+  const dropEl = document.getElementById('ranked-dropouts');
+  
+  if (newCard) newCard.style.display = newcomers.length ? '' : 'none';
+  if (dropCard) dropCard.style.display = dropouts.length ? '' : 'none';
+  
+  if (newEl) {
+    if (newcomers.length === 0) newEl.innerHTML = '<div class="empty-state" style="padding:12px"><p style="font-size:12px;color:var(--muted)">Aucun nouveau cette fois</p></div>';
+    else {
+      newEl.innerHTML = newcomers.map(n => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light)">
+          <span style="font-weight:700;color:var(--accent);min-width:32px">#${n.rank}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${esc(n.username)}</span>
+          <span style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--muted)">${n.elo}</span>
+        </div>
+      `).join('');
+    }
+  }
+  
+  if (dropEl) {
+    if (dropouts.length === 0) dropEl.innerHTML = '<div class="empty-state" style="padding:12px"><p style="font-size:12px;color:var(--muted)">Aucun sortant cette fois</p></div>';
+    else {
+      dropEl.innerHTML = dropouts.map(d => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-light)">
+          <span style="font-weight:700;color:var(--text3);min-width:32px">#${d.rank}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.username)}</span>
+          <span style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--muted)">${d.elo}</span>
+        </div>
+      `).join('');
+    }
+  }
 }
 
 function renderMyRank(players) {
@@ -1789,6 +1829,43 @@ function renderClanLeaderboard(players) {
   if (el) el.innerHTML = html;
 }
 
+function renderSparklineSVG(points, width, height) {
+  if (!points || points.length < 2) return '';
+  const pad = 8;
+  const w = width - pad * 2;
+  const h = height - pad * 2;
+  const elos = points.map(p => p.elo);
+  const minElo = Math.min(...elos) - 20;
+  const maxElo = Math.max(...elos) + 20;
+  const range = maxElo - minElo || 1;
+  
+  const coords = points.map((p, i) => {
+    const x = pad + (i / (points.length - 1)) * w;
+    const y = pad + h - ((p.elo - minElo) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  
+  const first = points[0];
+  const last = points[points.length - 1];
+  const firstX = pad;
+  const firstY = pad + h - ((first.elo - minElo) / range) * h;
+  const lastX = pad + w;
+  const lastY = pad + h - ((last.elo - minElo) / range) * h;
+  
+  const trend = last.elo >= first.elo ? 'var(--accent)' : '#ef4444';
+  
+  return `
+    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible">
+      <text x="${pad}" y="${pad - 2}" font-size="10" fill="var(--muted)" font-family="JetBrains Mono,monospace">${minElo}</text>
+      <text x="${width - pad}" y="${pad - 2}" font-size="10" fill="var(--muted)" font-family="JetBrains Mono,monospace" text-anchor="end">${maxElo}</text>
+      <polyline points="${coords.join(' ')}" fill="none" stroke="${trend}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+      <circle cx="${firstX.toFixed(1)}" cy="${firstY.toFixed(1)}" r="3" fill="var(--muted)"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${trend}" stroke="var(--card)" stroke-width="2"/>
+      <text x="${lastX.toFixed(1)}" y="${(lastY - 8).toFixed(1)}" font-size="11" fill="${trend}" font-weight="700" font-family="JetBrains Mono,monospace" text-anchor="middle">${last.elo}</text>
+    </svg>
+  `;
+}
+
 async function showRankedPlayerModal(publicId, username) {
   const modal = document.getElementById('ranked-player-modal');
   const nameEl = document.getElementById('ranked-modal-player-name');
@@ -1844,6 +1921,36 @@ async function showRankedPlayerModal(publicId, username) {
       const wins = rankedGames.filter(g => g.hasWon).length;
       const losses = rankedGames.filter(g => g.hasWon === false).length;
       statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D${streakText ? ' · ' + streakText : ''}`;
+    }
+
+    // Sparkline Elo history
+    try {
+      let histData;
+      try {
+        const gzRes = await fetch('ranked_history.json.gz', { cache: 'no-store' });
+        if (gzRes.ok) {
+          const ds = new DecompressionStream('gzip');
+          const decompressed = gzRes.body.pipeThrough(ds);
+          histData = await new Response(decompressed).json();
+        } else throw new Error('gz not available');
+      } catch (e) {
+        const res = await fetch('ranked_history.json', { cache: 'no-store' });
+        if (res.ok) histData = await res.json();
+      }
+      
+      const playerHist = histData ? histData[publicId] : null;
+      if (playerHist && playerHist.length >= 2) {
+        const sparklineHtml = renderSparklineSVG(playerHist, 400, 80);
+        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
+        const sparklineEl = document.getElementById('ranked-modal-sparkline');
+        if (sparklineEl) sparklineEl.innerHTML = sparklineHtml;
+        if (sparklineWrap) sparklineWrap.style.display = '';
+      } else {
+        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
+        if (sparklineWrap) sparklineWrap.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('[Ranked] Sparkline error:', e);
     }
     
     if (rankedGames.length === 0) {

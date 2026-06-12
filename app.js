@@ -1311,9 +1311,18 @@ function searchPlayer(){
 function showPlayer(name){
   const p=playerStats[name];if(!p)return;
 
-  // Check if this player has a registered account
-  if(connectedUsernames.has(name)){
-    window.location.href="profile.html?player="+encodeURIComponent(name);
+  // Check if this player has a registered account and get their publicId
+  let targetPublicId = null;
+  for (const [pid, data] of Object.entries(aliasMap)) {
+    if (data.name === name || (data.aliases || []).includes(name)) {
+      targetPublicId = pid;
+      break;
+    }
+  }
+
+  if(connectedUsernames.has(name) || targetPublicId){
+    const pidParam = targetPublicId ? `&publicId=${encodeURIComponent(targetPublicId)}` : '';
+    window.location.href="profile.html?player="+encodeURIComponent(name) + pidParam;
     return;
   }
 

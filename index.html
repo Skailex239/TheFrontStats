@@ -263,12 +263,28 @@
       <!-- Newcomers / Dropouts -->
       <div class="chart-grid" id="ranked-movers-grid" style="margin-bottom:12px">
         <div class="chart-card" style="display:none" id="newcomers-card">
-          <div class="chart-head">🆕 Nouveaux dans le top 100</div>
+          <div class="chart-head">🆕 Nouveaux dans le top 200</div>
           <div class="chart-body" id="ranked-newcomers"></div>
         </div>
         <div class="chart-card" style="display:none" id="dropouts-card">
-          <div class="chart-head">📉 Sortis du top 100</div>
+          <div class="chart-head">📉 Sortis du top 200</div>
           <div class="chart-body" id="ranked-dropouts"></div>
+        </div>
+      </div>
+
+      <!-- Top Elo Delta -->
+      <div class="chart-grid" id="ranked-delta-grid" style="margin-bottom:12px">
+        <div class="chart-card" id="ranked-gainers-card">
+          <div class="chart-head">🚀 Top gains Elo</div>
+          <div class="chart-body" id="ranked-top-gainers">
+            <div class="loading">Chargement...</div>
+          </div>
+        </div>
+        <div class="chart-card" id="ranked-losers-card">
+          <div class="chart-head">🧊 Top pertes Elo</div>
+          <div class="chart-body" id="ranked-top-losers">
+            <div class="loading">Chargement...</div>
+          </div>
         </div>
       </div>
 
@@ -278,7 +294,7 @@
       <!-- Tableau Ranked -->
       <div class="feed-card" style="margin-bottom:20px">
         <div class="feed-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>⚔️ Classement Classé (1v1) — Top 100 Officiel</span>
+          <span>⚔️ Classement Classé (1v1) — Top 200 Officiel</span>
           <div style="display:flex;align-items:center;gap:10px">
             <span id="ranked-last-update" style="font-size:12px;color:var(--muted)"></span>
             <button onclick="loadRankedLeaderboard(true)" style="background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Actualiser</button>
@@ -288,21 +304,27 @@
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; table-layout: fixed;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border); color: var(--text3);">
-                <th style="padding: 12px 8px; width: 6%;">Rang</th>
-                <th style="padding: 12px 8px; width: 30%;">Joueur</th>
-                <th style="padding: 12px 8px; width: 10%;">Elo</th>
-                <th style="padding: 12px 8px; width: 10%;">Peak</th>
-                <th style="padding: 12px 8px; width: 10%;">Winrate</th>
+                <th style="padding: 12px 8px; width: 6%; cursor:pointer" onclick="setRankedSort('rank')">Rang</th>
+                <th style="padding: 12px 8px; width: 24%; cursor:pointer" onclick="setRankedSort('username')">Joueur</th>
+                <th style="padding: 12px 8px; width: 8%; cursor:pointer" onclick="setRankedSort('elo')">Elo</th>
+                <th style="padding: 12px 8px; width: 8%; cursor:pointer" onclick="setRankedSort('peakElo')">Peak</th>
+                <th style="padding: 12px 8px; width: 10%; cursor:pointer" onclick="setRankedSort('winrate')">Winrate</th>
                 <th style="padding: 12px 8px; width: 12%;">V - D</th>
-                <th style="padding: 12px 8px; width: 8%;">Total</th>
-                <th style="padding: 12px 8px; width: 8%;">MV</th>
-                <th style="padding: 12px 8px; width: 8%;">Streak</th>
+                <th style="padding: 12px 8px; width: 8%; cursor:pointer" onclick="setRankedSort('total')">Total</th>
+                <th style="padding: 12px 8px; width: 6%; cursor:pointer" onclick="setRankedSort('movement')">MV</th>
+                <th style="padding: 12px 8px; width: 6%; cursor:pointer" onclick="setRankedSort('streak')">Streak</th>
+                <th style="padding: 12px 8px; width: 12%; cursor:pointer" onclick="setRankedSort('trend')">Trend</th>
               </tr>
             </thead>
             <tbody id="ranked-list">
-              <tr><td colspan="9" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>
+              <tr><td colspan="10" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>
             </tbody>
           </table>
+        </div>
+        <div id="ranked-pagination" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 6px;border-top:1px solid var(--border);color:var(--muted);font-size:12px">
+          <button onclick="setRankedPage('prev')" style="background:var(--bg2);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;cursor:pointer">Précédent</button>
+          <span id="ranked-page-indicator">Page —</span>
+          <button onclick="setRankedPage('next')" style="background:var(--bg2);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;cursor:pointer">Suivant</button>
         </div>
       </div>
 

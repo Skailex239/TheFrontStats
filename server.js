@@ -339,6 +339,8 @@ const server = http.createServer(async (req, res) => {
     "/ranked.json.gz": ["ranked.json.gz", "application/gzip"],
     "/ranked_history.json": ["ranked_history.json", "application/json; charset=utf-8"],
     "/ranked_history.json.gz": ["ranked_history.json.gz", "application/gzip"],
+    "/ranked_recent.json": ["ranked_recent.json", "application/json; charset=utf-8"],
+    "/ranked_recent.json.gz": ["ranked_recent.json.gz", "application/gzip"],
     "/toast.js": ["toast.js", "text/javascript; charset=utf-8"],
     "/toast.css": ["toast.css", "text/css; charset=utf-8"],
     "/sw.js": ["sw.js", "text/javascript; charset=utf-8"],

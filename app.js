@@ -28,9 +28,11 @@ function animateRanking(){
   const rows = leaderboard.getElementsByTagName("tr");
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const rank = parseInt(row.getElementsByTagName("td")[0].textContent);
-    const player = row.getElementsByTagName("td")[1].textContent;
-    const points = row.getElementsByTagName("td")[2].textContent;
+    const tds = row.getElementsByTagName("td");
+    if (!tds || tds.length < 3) continue;
+    const rank = parseInt(tds[0].textContent);
+    const player = tds[1].textContent;
+    const points = tds[2].textContent;
     const prevRank = previousGlobalLeaderboard.find(p => p.player === player);
     if (prevRank && prevRank.rank !== rank) {
       row.classList.add("animate");
@@ -1493,6 +1495,170 @@ window.mockLogin = mockLogin;
 
 
 // ====== RANKED LEADERBOARD ======
+function ensureRankedState() {
+  if (window._rankedState) return window._rankedState;
+  window._rankedState = {
+    allPlayers: [],
+    query: "",
+    sortKey: "rank",
+    sortDir: "asc",
+    page: 1,
+    pageSize: 50,
+    totalPages: 1,
+    historyById: null,
+    recentById: null,
+  };
+  return window._rankedState;
+}
+
+function getDefaultSortDir(key) {
+  if (key === "rank") return "asc";
+  if (key === "username") return "asc";
+  return "desc";
+}
+
+function getRankedWinrate(p) {
+  if (!p || !p.total) return 0;
+  return (p.wins / p.total) * 100;
+}
+
+function getRankedPeakElo(p) {
+  return p?.peakElo || p?.elo || 0;
+}
+
+function getRankedEloDelta(publicId) {
+  const st = ensureRankedState();
+  const hist = st.historyById;
+  if (!hist || !publicId) return null;
+  const arr = hist[publicId];
+  if (!arr || arr.length < 2) return null;
+  const last = arr[arr.length - 1];
+  const prev = arr[arr.length - 2];
+  if (!last || !prev) return null;
+  if (typeof last.elo !== "number" || typeof prev.elo !== "number") return null;
+  return last.elo - prev.elo;
+}
+
+async function fetchJsonGzipFirst(gzUrl, plainUrl) {
+  try {
+    const gzRes = await fetch(gzUrl, { cache: "no-store" });
+    if (gzRes.ok && gzRes.body) {
+      const ds = new DecompressionStream("gzip");
+      const decompressed = gzRes.body.pipeThrough(ds);
+      return await new Response(decompressed).json();
+    }
+  } catch {}
+  const plainRes = await fetch(plainUrl, { cache: "no-store" });
+  if (!plainRes.ok) throw new Error(`HTTP ${plainRes.status}`);
+  return plainRes.json();
+}
+
+async function loadRankedHistory() {
+  const st = ensureRankedState();
+  if (st.historyById) return st.historyById;
+  try {
+    const data = await fetchJsonGzipFirst("ranked_history.json.gz", "ranked_history.json");
+    st.historyById = data && typeof data === "object" ? data : {};
+  } catch {
+    st.historyById = {};
+  }
+  return st.historyById;
+}
+
+async function loadRankedRecent() {
+  const st = ensureRankedState();
+  if (st.recentById) return st.recentById;
+  try {
+    const data = await fetchJsonGzipFirst("ranked_recent.json.gz", "ranked_recent.json");
+    st.recentById = data?.top && typeof data.top === "object" ? data.top : {};
+  } catch {
+    st.recentById = {};
+  }
+  return st.recentById;
+}
+
+function applyRankedView() {
+  const st = ensureRankedState();
+  const q = (st.query || "").toLowerCase().trim();
+  let list = st.allPlayers || [];
+
+  if (q) {
+    list = list.filter(p =>
+      (p.username || "").toLowerCase().includes(q) ||
+      (p.clanTag || "").toLowerCase().includes(q)
+    );
+  }
+
+  const dir = st.sortDir === "asc" ? 1 : -1;
+  const key = st.sortKey;
+
+  const sorted = [...list].sort((a, b) => {
+    let av;
+    let bv;
+
+    if (key === "rank") { av = a.rank; bv = b.rank; }
+    else if (key === "username") { av = (a.username || "").toLowerCase(); bv = (b.username || "").toLowerCase(); }
+    else if (key === "elo") { av = a.elo; bv = b.elo; }
+    else if (key === "peakElo") { av = getRankedPeakElo(a); bv = getRankedPeakElo(b); }
+    else if (key === "winrate") { av = getRankedWinrate(a); bv = getRankedWinrate(b); }
+    else if (key === "total") { av = a.total; bv = b.total; }
+    else if (key === "movement") { av = a.movement; bv = b.movement; }
+    else if (key === "streak") { av = a.streak; bv = b.streak; }
+    else if (key === "trend") { av = getRankedEloDelta(a.public_id) ?? -Infinity; bv = getRankedEloDelta(b.public_id) ?? -Infinity; }
+    else { av = a[key]; bv = b[key]; }
+
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+
+    if (typeof av === "string" || typeof bv === "string") {
+      return String(av).localeCompare(String(bv)) * dir;
+    }
+    if (av === bv) return 0;
+    return (av < bv ? -1 : 1) * dir;
+  });
+
+  st.totalPages = Math.max(1, Math.ceil(sorted.length / st.pageSize));
+  if (st.page > st.totalPages) st.page = st.totalPages;
+  if (st.page < 1) st.page = 1;
+
+  const start = (st.page - 1) * st.pageSize;
+  const pagePlayers = sorted.slice(start, start + st.pageSize);
+
+  renderRankedTable(pagePlayers);
+
+  const ind = document.getElementById("ranked-page-indicator");
+  if (ind) ind.textContent = `Page ${st.page} / ${st.totalPages} · ${sorted.length.toLocaleString('fr')} joueurs`;
+
+  if (st.historyById) {
+    renderTopEloDelta(sorted);
+  }
+}
+
+function setRankedSort(key) {
+  const st = ensureRankedState();
+  if (!key) return;
+  if (st.sortKey === key) {
+    st.sortDir = st.sortDir === "asc" ? "desc" : "asc";
+  } else {
+    st.sortKey = key;
+    st.sortDir = getDefaultSortDir(key);
+  }
+  st.page = 1;
+  applyRankedView();
+}
+
+function setRankedPage(page) {
+  const st = ensureRankedState();
+  if (page === "prev") st.page = Math.max(1, st.page - 1);
+  else if (page === "next") st.page = Math.min(st.totalPages || 1, st.page + 1);
+  else {
+    const p = Number(page);
+    if (!Number.isNaN(p) && p >= 1) st.page = p;
+  }
+  applyRankedView();
+}
+
 async function loadRankedLeaderboard(force = false) {
   const container = document.getElementById('ranked-list');
   if (!container) {
@@ -1501,26 +1667,12 @@ async function loadRankedLeaderboard(force = false) {
   }
   if (!force && window._rankedLoaded) return;
   
-  container.innerHTML = '<tr><td colspan="8" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
+  container.innerHTML = '<tr><td colspan="10" style="padding: 20px; text-align: center; color: var(--text3);">Chargement du classement...</td></tr>';
   
   try {
     console.log('[Ranked] Loading leaderboard...');
     
-    let data;
-    try {
-      const gzRes = await fetch('ranked.json.gz', { cache: 'no-store' });
-      if (gzRes.ok) {
-        const ds = new DecompressionStream('gzip');
-        const decompressed = gzRes.body.pipeThrough(ds);
-        data = await new Response(decompressed).json();
-      } else {
-        throw new Error('gz not available');
-      }
-    } catch (e) {
-      const plainRes = await fetch('ranked.json', { cache: 'no-store' });
-      if (!plainRes.ok) throw new Error('Impossible de charger le classement');
-      data = await plainRes.json();
-    }
+    const data = await fetchJsonGzipFirst('ranked.json.gz', 'ranked.json');
     
     let players = [];
     if (data['1v1']) players.push(...data['1v1']);
@@ -1528,11 +1680,16 @@ async function loadRankedLeaderboard(force = false) {
     console.log('[Ranked] Players loaded:', players.length);
     
     if (players.length === 0) {
-      container.innerHTML = '<tr><td colspan="8" style="padding: 20px; text-align: center; color: var(--text3);">Aucun joueur classé pour le moment.</td></tr>';
+      container.innerHTML = '<tr><td colspan="10" style="padding: 20px; text-align: center; color: var(--text3);">Aucun joueur classé pour le moment.</td></tr>';
       return;
     }
     
-    // Store for filtering
+    const st = ensureRankedState();
+    st.allPlayers = players;
+    st.page = 1;
+    st.query = "";
+    st.sortKey = "rank";
+    st.sortDir = "asc";
     window._rankedPlayers = players;
     
     // Stats cards
@@ -1551,17 +1708,20 @@ async function loadRankedLeaderboard(force = false) {
     // Clan leaderboard
     renderClanLeaderboard(players);
     
-    // Render table
-    renderRankedTable(players);
+    applyRankedView();
     renderMyRank(players);
     renderNewcomersDropouts(data);
     
     window._rankedLoaded = true;
     console.log('[Ranked] Tableau rendu avec succès');
+
+    Promise.allSettled([loadRankedHistory(), loadRankedRecent()]).then(() => {
+      applyRankedView();
+    });
     
   } catch (err) {
     console.error("[Ranked] Erreur complète:", err);
-    container.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #ef4444;">Erreur lors du chargement du classement.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="10" style="padding: 20px; text-align: center; color: #ef4444;">Erreur lors du chargement du classement.</td></tr>`;
   }
 }
 
@@ -1622,6 +1782,14 @@ function renderRankedTable(players) {
       else streakHtml = `<span style="color:#3b82f6;font-weight:700">❄️${Math.abs(p.streak)}</span>`;
     }
 
+    let trendHtml = '—';
+    const st = ensureRankedState();
+    const hist = st.historyById;
+    if (hist && p.public_id && hist[p.public_id] && hist[p.public_id].length >= 2) {
+      const mini = renderMiniSparklineSVG(hist[p.public_id].slice(-20), 120, 22);
+      if (mini) trendHtml = mini;
+    }
+
     html += `
       <tr data-pid="${esc(p.public_id)}" style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;" 
           onmouseover="this.style.background='var(--bg2)'" 
@@ -1640,6 +1808,7 @@ function renderRankedTable(players) {
         <td style="padding: 12px 8px; color: var(--text3); font-family: 'JetBrains Mono', monospace;">${p.total}</td>
         <td style="padding: 12px 8px; text-align: center; font-size: 12px;">${moveHtml}</td>
         <td style="padding: 12px 8px; text-align: center; font-size: 12px;">${streakHtml}</td>
+        <td style="padding: 12px 8px; text-align: right;">${trendHtml}</td>
       </tr>
     `;
   });
@@ -1708,7 +1877,7 @@ function renderMyRank(players) {
     container.innerHTML = `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)">
         <span>🌍</span>
-        <span>Tu n'es pas dans le <b>Top 100</b> actuel. Continue à grind !</span>
+        <span>Tu n'es pas dans le <b>Top 200</b> actuel. Continue à grind !</span>
       </div>
     `;
     return;
@@ -1751,17 +1920,10 @@ function scrollToMyRank(publicId) {
 }
 
 function filterRanked(query) {
-  if (!window._rankedPlayers) return;
-  const q = query.toLowerCase().trim();
-  if (!q) {
-    renderRankedTable(window._rankedPlayers);
-    return;
-  }
-  const filtered = window._rankedPlayers.filter(p => 
-    (p.username || '').toLowerCase().includes(q) || 
-    (p.clanTag || '').toLowerCase().includes(q)
-  );
-  renderRankedTable(filtered);
+  const st = ensureRankedState();
+  st.query = query || "";
+  st.page = 1;
+  applyRankedView();
 }
 
 function renderEloDistribution(players) {
@@ -1838,6 +2000,65 @@ function renderClanLeaderboard(players) {
   if (el) el.innerHTML = html;
 }
 
+function renderMiniSparklineSVG(points, width, height) {
+  if (!points || points.length < 2) return '';
+  const pad = 2;
+  const w = width - pad * 2;
+  const h = height - pad * 2;
+  const elos = points.map(p => p.elo).filter(x => typeof x === 'number');
+  if (elos.length < 2) return '';
+  const minElo = Math.min(...elos) - 10;
+  const maxElo = Math.max(...elos) + 10;
+  const range = maxElo - minElo || 1;
+  
+  const coords = points.map((p, i) => {
+    const x = pad + (i / (points.length - 1)) * w;
+    const y = pad + h - (((p.elo || 0) - minElo) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  
+  const first = points[0];
+  const last = points[points.length - 1];
+  const trend = (last?.elo || 0) >= (first?.elo || 0) ? 'var(--accent)' : '#ef4444';
+  
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block"><polyline points="${coords.join(' ')}" fill="none" stroke="${trend}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/></svg>`;
+}
+
+function renderTopEloDelta(players) {
+  const gainEl = document.getElementById('ranked-top-gainers');
+  const lossEl = document.getElementById('ranked-top-losers');
+  if (!gainEl || !lossEl) return;
+
+  const st = ensureRankedState();
+  const hist = st.historyById;
+  if (!hist || Object.keys(hist).length === 0) {
+    gainEl.innerHTML = '<div class="empty-state" style="padding:20px"><p style="font-size:12px;color:var(--muted)">Historique Elo indisponible</p></div>';
+    lossEl.innerHTML = '<div class="empty-state" style="padding:20px"><p style="font-size:12px;color:var(--muted)">Historique Elo indisponible</p></div>';
+    return;
+  }
+
+  const deltas = (players || [])
+    .map(p => ({ p, d: getRankedEloDelta(p.public_id) }))
+    .filter(x => typeof x.d === 'number' && x.p);
+
+  const gains = [...deltas].filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
+  const losses = [...deltas].filter(x => x.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
+
+  const renderList = (arr, isGain) => {
+    if (!arr.length) return '<div class="empty-state" style="padding:20px"><p style="font-size:12px;color:var(--muted)">Aucun changement détecté</p></div>';
+    return arr.map(({ p, d }) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);cursor:pointer" onclick="showRankedPlayerModal('${esc(p.public_id)}','${esc(p.username)}')">
+        <span style="min-width:34px;font-weight:800;color:var(--text3)">#${p.rank}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${p.clanTag ? `<span style="color:var(--text3);font-size:0.9em;margin-right:4px;">[${esc(p.clanTag)}]</span>` : ''}${esc(p.username)}</span>
+        <span style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:800;color:${isGain ? '#10b981' : '#ef4444'}">${isGain ? '+' : ''}${d}</span>
+      </div>
+    `).join('');
+  };
+
+  gainEl.innerHTML = renderList(gains, true);
+  lossEl.innerHTML = renderList(losses, false);
+}
+
 function renderSparklineSVG(points, width, height) {
   if (!points || points.length < 2) return '';
   const pad = 8;
@@ -1886,34 +2107,82 @@ async function showRankedPlayerModal(publicId, username) {
   if (gamesEl) gamesEl.innerHTML = '<div class="loading" style="padding:20px">Chargement...</div>';
   if (modal) modal.classList.add('active');
   
+  const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
+  const sparklineEl = document.getElementById('ranked-modal-sparkline');
+
   try {
-    // Try to fetch via openfront-client if available, otherwise direct
+    const hist = await loadRankedHistory();
+    const playerHist = hist ? hist[publicId] : null;
+    if (playerHist && playerHist.length >= 2) {
+      if (sparklineEl) sparklineEl.innerHTML = renderSparklineSVG(playerHist, 400, 80);
+      if (sparklineWrap) sparklineWrap.style.display = '';
+    } else {
+      if (sparklineWrap) sparklineWrap.style.display = 'none';
+    }
+  } catch {
+    if (sparklineWrap) sparklineWrap.style.display = 'none';
+  }
+
+  let hadCache = false;
+  try {
+    const recentById = await loadRankedRecent();
+    const cached = recentById ? recentById[publicId] : null;
+    if (Array.isArray(cached) && cached.length) {
+      hadCache = true;
+      const wins = cached.filter(g => g.hasWon === true).length;
+      const losses = cached.filter(g => g.hasWon === false).length;
+      if (statsEl) statsEl.textContent = `${cached.length} parties 1v1 (cache) · ${wins}V - ${losses}D`;
+      if (gamesEl) {
+        gamesEl.innerHTML = cached.map(g => {
+          const won = g.hasWon === true;
+          const lost = g.hasWon === false;
+          const bg = won ? '#10b981' : lost ? '#ef4444' : 'var(--muted)';
+          const label = won ? 'W' : lost ? 'L' : '?';
+          return `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-light);transition:background 0.2s" onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='transparent'">
+              <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;background:${bg}">${label}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:14px;color:var(--text)">Match 1v1</div>
+                <div style="font-size:12px;color:var(--muted)">${esc(g.map || '—')} · ${g.start ? new Date(g.start).toLocaleDateString('fr-FR') : '—'}</div>
+              </div>
+              <a href="https://openfront.io/game/${esc(g.gameId)}" target="_blank" style="width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;font-size:10px;transition:all 0.25s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg)';this.style.color='var(--muted)'">▶</a>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  } catch {}
+
+  try {
     let pData;
+    let fetchOpenFront = null;
     try {
-      const { fetchOpenFront } = await import('./openfront-client.js');
+      ({ fetchOpenFront } = await import('./openfront-client.js'));
+    } catch {}
+
+    if (fetchOpenFront) {
       pData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
-    } catch (e) {
-      // Fallback direct fetch (will likely fail on GH Pages due to CORS)
+    } else {
       const res = await fetch(`https://api.openfront.io/public/player/${encodeURIComponent(publicId)}`);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       pData = await res.json();
     }
-    
+
     if (!pData || !pData.games) {
-      if (statsEl) statsEl.textContent = 'Aucune donnée disponible';
-      if (gamesEl) gamesEl.innerHTML = '<div class="empty-state" style="padding:20px"><p>Aucun historique trouvé</p></div>';
+      if (!hadCache) {
+        if (statsEl) statsEl.textContent = 'Aucune donnée disponible';
+        if (gamesEl) gamesEl.innerHTML = '<div class="empty-state" style="padding:20px"><p>Aucun historique trouvé</p></div>';
+      } else if (statsEl) {
+        statsEl.textContent += ' · détails live indisponibles';
+      }
       return;
     }
-    
-    const rankedGames = (pData.games || [])
-      .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
-      .reverse()
-      .slice(0, 10);
 
-    // Compute streak from all ranked games (not just last 10)
     const allRankedGames = (pData.games || [])
       .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
       .sort((a, b) => new Date(b.start || b.end || 0) - new Date(a.start || a.end || 0));
+
+    const rankedGames = allRankedGames.slice(0, 10);
     let streak = 0;
     for (const g of allRankedGames) {
       if (g.hasWon === true) {
@@ -1925,66 +2194,35 @@ async function showRankedPlayerModal(publicId, username) {
       } else break;
     }
     const streakText = streak > 0 ? `🔥 Série: ${streak} victoires` : streak < 0 ? `❄️ Série: ${Math.abs(streak)} défaites` : '';
-    
-    if (statsEl) {
-      const wins = rankedGames.filter(g => g.hasWon).length;
-      const losses = rankedGames.filter(g => g.hasWon === false).length;
-      statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D${streakText ? ' · ' + streakText : ''}`;
-    }
+    const wins = rankedGames.filter(g => g.hasWon).length;
+    const losses = rankedGames.filter(g => g.hasWon === false).length;
+    if (statsEl) statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D${streakText ? ' · ' + streakText : ''}`;
 
-    // Sparkline Elo history
-    try {
-      let histData;
-      try {
-        const gzRes = await fetch('ranked_history.json.gz', { cache: 'no-store' });
-        if (gzRes.ok) {
-          const ds = new DecompressionStream('gzip');
-          const decompressed = gzRes.body.pipeThrough(ds);
-          histData = await new Response(decompressed).json();
-        } else throw new Error('gz not available');
-      } catch (e) {
-        const res = await fetch('ranked_history.json', { cache: 'no-store' });
-        if (res.ok) histData = await res.json();
-      }
-      
-      const playerHist = histData ? histData[publicId] : null;
-      if (playerHist && playerHist.length >= 2) {
-        const sparklineHtml = renderSparklineSVG(playerHist, 400, 80);
-        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
-        const sparklineEl = document.getElementById('ranked-modal-sparkline');
-        if (sparklineEl) sparklineEl.innerHTML = sparklineHtml;
-        if (sparklineWrap) sparklineWrap.style.display = '';
-      } else {
-        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
-        if (sparklineWrap) sparklineWrap.style.display = 'none';
-      }
-    } catch (e) {
-      console.warn('[Ranked] Sparkline error:', e);
-    }
-    
     if (rankedGames.length === 0) {
       if (gamesEl) gamesEl.innerHTML = '<div class="empty-state" style="padding:20px"><p>Aucune partie classée 1v1 trouvée</p></div>';
       return;
     }
-    
+
+    const openGame = async (gameId) => {
+      if (!gameId) return null;
+      if (fetchOpenFront) {
+        const r = await fetchOpenFront(`/public/game/${encodeURIComponent(gameId)}?turns=false`);
+        return r?.info || r;
+      }
+      const res = await fetch(`https://api.openfront.io/public/game/${encodeURIComponent(gameId)}?turns=false`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      return j?.info || j;
+    };
+
     let html = '';
     for (const g of rankedGames) {
+      const gameId = g.gameId || g.game || g.id;
       try {
-        let gInfo;
-        try {
-          const { fetchOpenFront } = await import('./openfront-client.js');
-          gInfo = await fetchOpenFront(`/public/game/${g.gameId}?turns=false`);
-        } catch (e) {
-          const res = await fetch(`https://api.openfront.io/public/game/${g.gameId}?turns=false`);
-          if (!res.ok) continue;
-          gInfo = (await res.json()).info || await res.json();
-        }
-        
-        const players = gInfo.players || [];
-        const me = players.find(pl => pl.clientID === g.clientId);
+        const gInfo = await openGame(gameId);
+        const players = gInfo?.players || [];
         const opponent = players.find(pl => pl.clientID !== g.clientId);
-        const won = gInfo.winner && Array.isArray(gInfo.winner) && gInfo.winner[1] === g.clientId;
-        
+        const won = gInfo?.winner && Array.isArray(gInfo.winner) && gInfo.winner[1] === g.clientId;
         html += `
           <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-light);transition:background 0.2s" onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='transparent'">
             <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;background:${won ? '#10b981' : '#ef4444'}">${won ? 'W' : 'L'}</div>
@@ -1992,20 +2230,32 @@ async function showRankedPlayerModal(publicId, username) {
               <div style="font-weight:600;font-size:14px;color:var(--text)">vs ${esc(opponent?.username || 'Inconnu')}</div>
               <div style="font-size:12px;color:var(--muted)">${esc(g.map || '—')} · ${g.start ? new Date(g.start).toLocaleDateString('fr-FR') : '—'}</div>
             </div>
-            <a href="https://openfront.io/game/${g.gameId}" target="_blank" style="width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;font-size:10px;transition:all 0.25s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg)';this.style.color='var(--muted)'">▶</a>
+            <a href="https://openfront.io/game/${esc(gameId)}" target="_blank" style="width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;font-size:10px;transition:all 0.25s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg)';this.style.color='var(--muted)'">▶</a>
           </div>
         `;
-      } catch (e) {
-        console.warn('[Ranked] Erreur fetch game detail:', e);
+      } catch {
+        html += `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-light);transition:background 0.2s" onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='transparent'">
+            <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;background:var(--muted)">?</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px;color:var(--text)">Match 1v1</div>
+              <div style="font-size:12px;color:var(--muted)">${esc(g.map || '—')} · ${g.start ? new Date(g.start).toLocaleDateString('fr-FR') : '—'}</div>
+            </div>
+            <a href="https://openfront.io/game/${esc(gameId)}" target="_blank" style="width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;font-size:10px;transition:all 0.25s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg)';this.style.color='var(--muted)'">▶</a>
+          </div>
+        `;
       }
     }
-    
-    if (gamesEl) gamesEl.innerHTML = html || '<div class="empty-state" style="padding:20px"><p>Impossible de charger les détails</p></div>';
-    
+
+    if (gamesEl) gamesEl.innerHTML = html;
   } catch (err) {
-    console.error('[Ranked] Erreur historique:', err);
-    if (statsEl) statsEl.textContent = 'Erreur de chargement';
-    if (gamesEl) gamesEl.innerHTML = `<div class="empty-state" style="padding:20px"><p style="color:#ef4444">Erreur API (CORS probable). Essayez en local.</p></div>`;
+    console.error('[Ranked] Live modal error:', err);
+    if (!hadCache) {
+      if (statsEl) statsEl.textContent = 'Erreur de chargement';
+      if (gamesEl) gamesEl.innerHTML = `<div class="empty-state" style="padding:20px"><p style="color:#ef4444">Erreur API (CORS/proxy probable). Essayez en local.</p></div>`;
+    } else if (statsEl) {
+      statsEl.textContent += ' · détails live indisponibles';
+    }
   }
 }
 
@@ -2018,6 +2268,8 @@ function closeRankedModal(e) {
 
 window.loadRankedLeaderboard = loadRankedLeaderboard;
 window.filterRanked = filterRanked;
+window.setRankedSort = setRankedSort;
+window.setRankedPage = setRankedPage;
 window.showRankedPlayerModal = showRankedPlayerModal;
 window.renderMyRank = renderMyRank;
 window.scrollToMyRank = scrollToMyRank;

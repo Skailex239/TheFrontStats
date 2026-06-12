@@ -24,6 +24,44 @@ try {
 
 const MAX_PAGES = 4; // 4 × 50 = top 200 joueurs
 const MAX_HISTORY_POINTS = 200; // 200 points max par joueur (~50h de sync)
+const RECENT_GAMES_PER_PLAYER = 10;
+
+const HAS_EXEMPTION = hasExemption();
+const PLAYER_DETAILS_CONCURRENCY = HAS_EXEMPTION ? 12 : 2;
+const PLAYER_DETAILS_DELAY_MS = HAS_EXEMPTION ? 0 : 200;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function isRanked1v1Game(g) {
+  return g && (g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked');
+}
+
+function computeStreakFromGamesDesc(gamesDesc) {
+  let streak = 0;
+  for (const g of gamesDesc) {
+    if (g.hasWon === true) {
+      if (streak >= 0) streak++;
+      else break;
+    } else if (g.hasWon === false) {
+      if (streak <= 0) streak--;
+      else break;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+async function fetchPlayerInfo(publicId) {
+  const res = await openFrontFetch(`${API_BASE}/public/player/${encodeURIComponent(publicId)}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
 
 async function fetchLeaderboard() {
   const allPlayers = [];
@@ -61,43 +99,48 @@ async function fetchLeaderboard() {
   return allPlayers;
 }
 
-async function enrichStreaks(players) {
-  // Calcule la série de victoires/défaites consécutives pour le top 20
-  const topN = 20;
+async function enrichPlayersAndBuildRecent(players) {
   const enriched = [...players];
-  for (let i = 0; i < Math.min(topN, enriched.length); i++) {
-    const p = enriched[i];
-    if (!p.public_id) continue;
-    try {
-      const res = await openFrontFetch(`${API_BASE}/public/player/${encodeURIComponent(p.public_id)}`);
-      if (!res.ok) {
-        console.warn(`[ranked-sync] Streak fetch ${p.username}: HTTP ${res.status}`);
-        continue;
-      }
-      const data = await res.json();
-      const games = (data.games || [])
-        .filter(g => g.rankedType === '1v1' || g.mode === '1v1' || g.type === 'Ranked')
-        .sort((a, b) => new Date(b.start || b.end || 0) - new Date(a.start || a.end || 0));
+  const recentById = {};
 
-      let streak = 0;
-      for (const g of games) {
-        if (g.hasWon === true) {
-          if (streak >= 0) streak++;
-          else break;
-        } else if (g.hasWon === false) {
-          if (streak <= 0) streak--;
-          else break;
-        } else {
-          break; // unknown result
-        }
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(PLAYER_DETAILS_CONCURRENCY, enriched.length || 1) }, () => (async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= enriched.length) return;
+      const p = enriched[i];
+      if (!p?.public_id) continue;
+      try {
+        const data = await fetchPlayerInfo(p.public_id);
+        const allRanked = (data?.games || [])
+          .filter(isRanked1v1Game)
+          .sort((a, b) => new Date(b.start || b.end || 0) - new Date(a.start || a.end || 0));
+
+        const streak = computeStreakFromGamesDesc(allRanked);
+        enriched[i] = { ...p, streak };
+
+        const recent = allRanked
+          .slice(0, RECENT_GAMES_PER_PLAYER)
+          .map(g => ({
+            gameId: g.gameId || g.game || g.id,
+            start: g.start || g.end || null,
+            map: g.map || null,
+            hasWon: g.hasWon === true ? true : (g.hasWon === false ? false : null),
+            clientId: g.clientId || g.clientID || null,
+          }))
+          .filter(x => Boolean(x.gameId));
+
+        recentById[p.public_id] = recent;
+      } catch (e) {
+        console.warn(`[ranked-sync] Player info erreur ${p.username || p.public_id}:`, e.message || e);
+      } finally {
+        if (PLAYER_DETAILS_DELAY_MS) await sleep(PLAYER_DETAILS_DELAY_MS);
       }
-      enriched[i] = { ...p, streak };
-      console.log(`[ranked-sync] Streak #${i + 1} ${p.username}: ${streak > 0 ? '🔥+' + streak : streak < 0 ? '❄️' + streak : '0'}`);
-    } catch (e) {
-      console.warn(`[ranked-sync] Streak erreur ${p.username}:`, e.message);
     }
-  }
-  return enriched;
+  })());
+
+  await Promise.all(workers);
+  return { players: enriched, recentById };
 }
 
 function loadHistory() {
@@ -176,10 +219,10 @@ function saveWithMovement(players) {
     return { ...p, movement };
   });
 
-  // Nouveaux arrivants / sortants (top 100 uniquement)
-  const top100 = enriched.slice(0, 100);
-  const prevTop100 = previousPlayers.slice(0, 100);
-  const { newcomers, dropouts } = computeNewcomersAndDropouts(top100, prevTop100);
+  // Nouveaux arrivants / sortants (top 200 uniquement)
+  const top200 = enriched.slice(0, 200);
+  const prevTop200 = previousPlayers.slice(0, 200);
+  const { newcomers, dropouts } = computeNewcomersAndDropouts(top200, prevTop200);
   if (newcomers.length) console.log(`[ranked-sync] 🆕 Nouveaux: ${newcomers.map(n => n.username).join(', ')}`);
   if (dropouts.length) console.log(`[ranked-sync] 📉 Sortants: ${dropouts.map(d => d.username).join(', ')}`);
 
@@ -206,9 +249,20 @@ function saveWithMovement(players) {
   return { newcomers, dropouts };
 }
 
+function saveRankedRecent(recentById) {
+  const payload = {
+    updatedAt: new Date().toISOString(),
+    top: recentById || {},
+  };
+  const json = JSON.stringify(payload);
+  fs.writeFileSync("ranked_recent.json", json);
+  fs.writeFileSync("ranked_recent.json.gz", zlib.gzipSync(json));
+  console.log(`[ranked-sync] 🧩 ranked_recent sauvegardé: ${Object.keys(payload.top).length} joueurs, ${(json.length / 1024).toFixed(0)} KB`);
+}
+
 async function main() {
   console.log("[ranked-sync] 🚀 Démarrage du sync ranked...");
-  if (hasExemption()) {
+  if (HAS_EXEMPTION) {
     console.log("[ranked-sync] 🔑 Exemption Skailex active");
   } else {
     console.warn(
@@ -216,10 +270,11 @@ async function main() {
     );
   }
   const players = await fetchLeaderboard();
-  const playersWithStreaks = await enrichStreaks(players);
+  const { players: playersWithStreaks, recentById } = await enrichPlayersAndBuildRecent(players);
   const history = loadHistory();
   saveHistory(history, playersWithStreaks);
   saveWithMovement(playersWithStreaks);
+  saveRankedRecent(recentById);
   console.log("[ranked-sync] ✅ Terminé.");
 }
 

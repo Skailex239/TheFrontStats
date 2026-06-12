@@ -24,7 +24,7 @@ jobs:
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           SYNC_HISTORY_WINDOWS: "500"
-      - run: node sync-massive.js
+      - run: node sync-ranked.js
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
       - name: Commit et push (standard)
@@ -34,7 +34,7 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          for f in runs_public.json.gz runs.json.gz ranked.json ranked.json.gz clans.json clans.json.gz news.json news.json.gz seen.json checkpoint.json; do
+          for f in runs_public.json.gz runs.json.gz ranked.json ranked.json.gz ranked_history.json ranked_history.json.gz ranked_recent.json ranked_recent.json.gz clans.json clans.json.gz news.json news.json.gz seen.json checkpoint.json; do
             [ -f "$f" ] && git add "$f"
           done
           git diff --cached --quiet && { echo "no changes standard"; exit 0; }

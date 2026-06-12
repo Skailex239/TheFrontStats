@@ -47,11 +47,8 @@
     </div>
 
     <nav>
-      <a class="nav-item tab-btn active" id="tab-btn-maps" onclick="switchTab('maps',this);document.getElementById('topbar-title').textContent='Tableau de bord'">
-        🏠 Tableau de bord
-      </a>
-      <a class="nav-item tab-btn" id="tab-btn-global" onclick="switchTab('global',this);document.getElementById('topbar-title').textContent='Classements'">
-        🏆 Classements
+      <a class="nav-item tab-btn active" id="tab-btn-maps" onclick="switchTab('maps',this);document.getElementById('topbar-title').textContent='Speedruns'">
+        🏆 Speedruns
       </a>
       <a class="nav-item tab-btn" id="tab-btn-ranked" onclick="switchTab('ranked',this);document.getElementById('topbar-title').textContent='Classé (1v1)'">
         ⚔️ Classé (1v1)
@@ -59,7 +56,6 @@
       <a class="nav-item tab-btn" id="tab-btn-stats" onclick="switchTab('stats',this);document.getElementById('topbar-title').textContent='Statistiques'">
         📊 Statistiques
       </a>
-
     </nav>
 
     <!-- Profile / Auth -->
@@ -160,8 +156,10 @@
       </div>
     </section>
 
-    <!-- ═══ TAB: Maps / Tableau de bord ═══ -->
+    <!-- ═══ TAB: Speedruns ═══ -->
     <div class="tab-content active" id="tab-maps">
+      <div class="hof-cards" id="hof-list"></div>
+
       <div class="search-bar">
         <input type="text" id="player-search" class="search-input" placeholder="🔍 Rechercher un joueur..." oninput="searchPlayer()">
       </div>
@@ -198,22 +196,17 @@
         </div>
       </section>
 
-      <!-- Feed -->
-      <section class="feed-section">
+      <div class="chart-grid" style="margin-bottom:20px">
+        <div class="feed-card">
+          <div class="feed-header">🌍 Classement mondial — 1er = 3pts · 2e = 2pts · 3e = 1pt</div>
+          <div id="global-list" style="max-height: 500px; overflow-y: auto;"><div class="loading">Chargement...</div></div>
+        </div>
         <div class="feed-card">
           <div class="feed-header">⚡ Dernières victoires</div>
-          <div id="feed-list"><div class="loading">Chargement...</div></div>
+          <div id="feed-list" style="max-height: 500px; overflow-y: auto;"><div class="loading">Chargement...</div></div>
         </div>
-      </section>
-    </div>
-
-    <!-- ═══ TAB: Global ═══ -->
-    <div class="tab-content" id="tab-global">
-      <div class="hof-cards" id="hof-list"></div>
-      <div class="feed-card" style="margin-bottom:20px">
-        <div class="feed-header">🌍 Classement mondial — 1er = 3pts · 2e = 2pts · 3e = 1pt</div>
-        <div id="global-list"><div class="loading">Chargement...</div></div>
       </div>
+
       <div class="feed-card">
         <div class="feed-header">⚔️ Comparer deux joueurs</div>
         <div style="padding:16px 20px">

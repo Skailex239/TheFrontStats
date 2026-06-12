@@ -1395,7 +1395,7 @@ function updateURL(){
   const p=new URLSearchParams();
   const activeTab=document.querySelector('.tab-btn.active');
   if(activeTab){
-    const tabs=['maps','global','stats'];
+    const tabs=['maps','ranked','stats'];
     const idx=[...document.querySelectorAll('.tab-btn')].indexOf(activeTab);
     if(idx>=0&&tabs[idx])p.set('tab',tabs[idx]);
   }
@@ -1425,7 +1425,7 @@ loadData().then(()=>{
   }
   if (tabParam) {
     const btns = document.querySelectorAll('.tab-btn');
-    const tabs = ['maps', 'global', 'stats'];
+    const tabs = ['maps', 'ranked', 'stats'];
     const idx = tabs.indexOf(tabParam);
     if (idx >= 0 && btns[idx]) switchTab(tabParam, btns[idx]);
   }

@@ -24,9 +24,6 @@ jobs:
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           SYNC_HISTORY_WINDOWS: "500"
-      - run: node sync-massive.js
-        env:
-          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
       - name: Commit et push (standard)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +56,7 @@ jobs:
         with:
           node-version: '18'
       - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
-      - run: node sync-compact.js
+      - run: node sync.js --mode=compact
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           COMPACT_HISTORY_WINDOWS: "500"
@@ -87,8 +84,8 @@ jobs:
       actions: write
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     steps:
-      - name: Redeclencher dans 3 minutes
+      - name: Redeclencher dans 30 secondes
         run: |
-          sleep 180
+          sleep 30
           curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "Redeclenchement programme"
         shell: bash

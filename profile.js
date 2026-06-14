@@ -767,18 +767,37 @@ async function loadRankedGames(publicId, containerId) {
   if (!box || !publicId) return;
   box.innerHTML = `<div class="loading">Chargement...</div>`;
   try {
-    const pRes = await fetch(`https://api.openfront.io/player/${publicId}`);
-    const pData = await pRes.json();
+    let pData;
+    try {
+      const { fetchOpenFront } = await import('./openfront-client.js');
+      pData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
+    } catch (e) {
+      const pRes = await fetch(`https://api.openfront.io/player/${publicId}`);
+      pData = await pRes.json();
+    }
     const ranked = (pData.games || []).filter(g => g.rankedType === "1v1").reverse().slice(0, 5);
     if (ranked.length === 0) { box.innerHTML = "<p style='padding:16px;text-align:center;color:var(--text3)'>Aucune partie classée.</p>"; return; }
     let html = "";
     for (const g of ranked) {
-      const gRes = await fetch(`https://api.openfront.io/public/game/${g.gameId}?turns=false`);
-      const gInfo = (await gRes.json()).info || await gRes.json();
-      const opp = (gInfo.players || []).find(pl => pl.clientID !== g.clientId)?.username || "Inconnu";
-      const won = gInfo.winner && gInfo.winner[1] === g.clientId;
-      html += `<a class="pf-game" href="https://openfront.io/game/${g.gameId}" target="_blank"><div class="pf-game-icon ${won ? "won" : "lost"}">${won ? "W" : "L"}</div><div class="pf-game-body"><div class="pf-game-map">vs ${esc(opp)}</div><div class="pf-game-meta">${esc(g.map || "—")} · ${new Date(g.start).toLocaleDateString()}</div></div><div class="pf-game-link">▶</div></a>`;
+      try {
+        let gInfo;
+        try {
+          const { fetchOpenFront } = await import('./openfront-client.js');
+          const gRaw = await fetchOpenFront(`/public/game/${g.gameId}?turns=false`);
+          gInfo = gRaw.info || gRaw;
+        } catch (e) {
+          const gRes = await fetch(`https://api.openfront.io/public/game/${g.gameId}?turns=false`);
+          if (!gRes.ok) continue;
+          const gRaw = await gRes.json();
+          gInfo = gRaw.info || gRaw;
+        }
+        const opp = (gInfo.players || []).find(pl => pl.clientID !== g.clientId);
+        const won = gInfo.winner && Array.isArray(gInfo.winner) && gInfo.winner[1] === g.clientId;
+        html += `<a class="pf-game" href="https://openfront.io/game/${g.gameId}" target="_blank"><div class="pf-game-icon ${won ? "won" : "lost"}">${won ? "W" : "L"}</div><div class="pf-game-body"><div class="pf-game-map">vs ${esc(opp?.username || opp?.displayName || 'Inconnu')}</div><div class="pf-game-meta">${esc(g.map || "—")} · ${new Date(g.start).toLocaleDateString()}</div></div><div class="pf-game-link">▶</div></a>`;
+      } catch (e) {
+        console.warn('[Profile] Erreur fetch game detail:', g.gameId, e);
+      }
     }
-    box.innerHTML = html;
+    box.innerHTML = html || "<p style='padding:16px;text-align:center;color:var(--text3)'>Impossible de charger les détails.</p>";
   } catch (e) { box.innerHTML = "<p style='padding:16px;text-align:center;color:#ef4444'>Erreur API.</p>"; }
 }

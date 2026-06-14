@@ -1838,43 +1838,6 @@ function renderClanLeaderboard(players) {
   if (el) el.innerHTML = html;
 }
 
-function renderSparklineSVG(points, width, height) {
-  if (!points || points.length < 2) return '';
-  const pad = 8;
-  const w = width - pad * 2;
-  const h = height - pad * 2;
-  const elos = points.map(p => p.elo);
-  const minElo = Math.min(...elos) - 20;
-  const maxElo = Math.max(...elos) + 20;
-  const range = maxElo - minElo || 1;
-  
-  const coords = points.map((p, i) => {
-    const x = pad + (i / (points.length - 1)) * w;
-    const y = pad + h - ((p.elo - minElo) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  
-  const first = points[0];
-  const last = points[points.length - 1];
-  const firstX = pad;
-  const firstY = pad + h - ((first.elo - minElo) / range) * h;
-  const lastX = pad + w;
-  const lastY = pad + h - ((last.elo - minElo) / range) * h;
-  
-  const trend = last.elo >= first.elo ? 'var(--accent)' : '#ef4444';
-  
-  return `
-    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible">
-      <text x="${pad}" y="${pad - 2}" font-size="10" fill="var(--muted)" font-family="JetBrains Mono,monospace">${minElo}</text>
-      <text x="${width - pad}" y="${pad - 2}" font-size="10" fill="var(--muted)" font-family="JetBrains Mono,monospace" text-anchor="end">${maxElo}</text>
-      <polyline points="${coords.join(' ')}" fill="none" stroke="${trend}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
-      <circle cx="${firstX.toFixed(1)}" cy="${firstY.toFixed(1)}" r="3" fill="var(--muted)"/>
-      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${trend}" stroke="var(--card)" stroke-width="2"/>
-      <text x="${lastX.toFixed(1)}" y="${(lastY - 8).toFixed(1)}" font-size="11" fill="${trend}" font-weight="700" font-family="JetBrains Mono,monospace" text-anchor="middle">${last.elo}</text>
-    </svg>
-  `;
-}
-
 async function showRankedPlayerModal(publicId, username) {
   const modal = document.getElementById('ranked-player-modal');
   const nameEl = document.getElementById('ranked-modal-player-name');
@@ -1931,36 +1894,6 @@ async function showRankedPlayerModal(publicId, username) {
       const losses = rankedGames.filter(g => g.hasWon === false).length;
       statsEl.textContent = `${rankedGames.length} parties 1v1 · ${wins}V - ${losses}D${streakText ? ' · ' + streakText : ''}`;
     }
-
-    // Sparkline Elo history
-    try {
-      let histData;
-      try {
-        const gzRes = await fetch('ranked_history.json.gz', { cache: 'no-store' });
-        if (gzRes.ok) {
-          const ds = new DecompressionStream('gzip');
-          const decompressed = gzRes.body.pipeThrough(ds);
-          histData = await new Response(decompressed).json();
-        } else throw new Error('gz not available');
-      } catch (e) {
-        const res = await fetch('ranked_history.json', { cache: 'no-store' });
-        if (res.ok) histData = await res.json();
-      }
-      
-      const playerHist = histData ? histData[publicId] : null;
-      if (playerHist && playerHist.length >= 2) {
-        const sparklineHtml = renderSparklineSVG(playerHist, 400, 80);
-        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
-        const sparklineEl = document.getElementById('ranked-modal-sparkline');
-        if (sparklineEl) sparklineEl.innerHTML = sparklineHtml;
-        if (sparklineWrap) sparklineWrap.style.display = '';
-      } else {
-        const sparklineWrap = document.getElementById('ranked-modal-sparkline-wrap');
-        if (sparklineWrap) sparklineWrap.style.display = 'none';
-      }
-    } catch (e) {
-      console.warn('[Ranked] Sparkline error:', e);
-    }
     
     if (rankedGames.length === 0) {
       if (gamesEl) gamesEl.innerHTML = '<div class="empty-state" style="padding:20px"><p>Aucune partie classée 1v1 trouvée</p></div>';
@@ -1973,11 +1906,13 @@ async function showRankedPlayerModal(publicId, username) {
         let gInfo;
         try {
           const { fetchOpenFront } = await import('./openfront-client.js');
-          gInfo = await fetchOpenFront(`/public/game/${g.gameId}?turns=false`);
+          const gRaw = await fetchOpenFront(`/public/game/${g.gameId}?turns=false`);
+          gInfo = gRaw.info || gRaw;
         } catch (e) {
           const res = await fetch(`https://api.openfront.io/public/game/${g.gameId}?turns=false`);
           if (!res.ok) continue;
-          gInfo = (await res.json()).info || await res.json();
+          const gRaw = await res.json();
+          gInfo = gRaw.info || gRaw;
         }
         
         const players = gInfo.players || [];
@@ -1989,7 +1924,7 @@ async function showRankedPlayerModal(publicId, username) {
           <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border-light);transition:background 0.2s" onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='transparent'">
             <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;background:${won ? '#10b981' : '#ef4444'}">${won ? 'W' : 'L'}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:600;font-size:14px;color:var(--text)">vs ${esc(opponent?.username || 'Inconnu')}</div>
+              <div style="font-weight:600;font-size:14px;color:var(--text)">vs ${esc(opponent?.username || opponent?.displayName || 'Inconnu')}</div>
               <div style="font-size:12px;color:var(--muted)">${esc(g.map || '—')} · ${g.start ? new Date(g.start).toLocaleDateString('fr-FR') : '—'}</div>
             </div>
             <a href="https://openfront.io/game/${g.gameId}" target="_blank" style="width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;font-size:10px;transition:all 0.25s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='var(--bg)';this.style.color='var(--muted)'">▶</a>

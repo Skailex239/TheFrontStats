@@ -30,7 +30,7 @@ jobs:
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          for f in ranked.json ranked_history.json ranked_history.json.gz; do
+          for f in ranked.json ranked.json.gz ranked_history.json ranked_history.json.gz; do
             [ -f "$f" ] && git add "$f"
           done
           git diff --cached --quiet && { echo "no changes ranked"; exit 0; }

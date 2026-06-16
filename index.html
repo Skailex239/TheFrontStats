@@ -255,9 +255,20 @@
         </div>
       </section>
 
-      <!-- Search -->
+      <!-- Search + Filters -->
       <div class="search-bar">
         <input type="text" id="ranked-search" class="search-input" placeholder="🔍 Rechercher un joueur classé..." oninput="filterRanked(this.value)">
+      </div>
+      <div class="ranked-toolbar" id="ranked-toolbar">
+        <div class="filter-group" role="group" aria-label="Filtre nombre de joueurs">
+          <button class="filter-btn" data-top="10" onclick="setTopFilter(10)">Top 10</button>
+          <button class="filter-btn" data-top="25" onclick="setTopFilter(25)">Top 25</button>
+          <button class="filter-btn" data-top="50" onclick="setTopFilter(50)">Top 50</button>
+          <button class="filter-btn active" data-top="all" onclick="setTopFilter('all')">Tous</button>
+        </div>
+        <button class="filter-btn fav-toggle" id="fav-toggle" onclick="toggleFavFilter()" title="Afficher uniquement mes favoris">
+          <span class="fav-star">☆</span> <span class="fav-label">Favoris</span> <span class="fav-count" id="fav-count" style="display:none">0</span>
+        </button>
       </div>
 
       <!-- Newcomers / Dropouts -->

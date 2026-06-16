@@ -1555,7 +1555,10 @@ async function loadRankedLeaderboard(force = false) {
     renderRankedTable(players);
     renderMyRank(players);
     renderNewcomersDropouts(data);
-    
+
+    // Initialise le compteur de favoris
+    updateFavCounter();
+
     window._rankedLoaded = true;
     console.log('[Ranked] Tableau rendu avec succès');
     
@@ -1592,14 +1595,22 @@ function renderRankedStatsCards(players) {
 function renderRankedTable(players) {
   const container = document.getElementById('ranked-list');
   if (!container) return;
-  
+
   let html = '';
+  if (!players || players.length === 0) {
+    container.innerHTML = '<tr><td colspan="9" style="padding: 20px; text-align: center; color: var(--text3);">Aucun joueur ne correspond aux filtres.</td></tr>';
+    return;
+  }
+
+  // Affiche un indicateur si on est en mode "favoris seulement"
+  const favOnly = window._rankedFilters && window._rankedFilters.favOnly;
+
   players.forEach(p => {
     const winrate = p.total > 0 ? ((p.wins / p.total) * 100) : 0;
     const winrateStr = winrate.toFixed(1);
     const wrColor = getWinrateColor(winrate);
     const publicIdParam = p.public_id ? `&publicId=${p.public_id}` : '';
-    
+
     // Movement arrow
     let moveHtml = '—';
     if (p.movement != null) {
@@ -1608,13 +1619,13 @@ function renderRankedTable(players) {
       else if (m < 0) moveHtml = `<span style="color:#ef4444;font-weight:700">↓${Math.abs(m)}</span>`;
       else moveHtml = `<span style="color:var(--muted)">—</span>`;
     }
-    
+
     // Peak Elo with arrow if different from current
     const peakDiff = (p.peakElo || p.elo) - p.elo;
-    const peakHtml = peakDiff > 0 
+    const peakHtml = peakDiff > 0
       ? `${p.peakElo || p.elo} <span style="color:var(--gold);font-size:11px">↑${peakDiff}</span>`
       : `${p.peakElo || p.elo}`;
-    
+
     // Streak badge
     let streakHtml = '—';
     if (p.streak != null && p.streak !== 0) {
@@ -1622,16 +1633,27 @@ function renderRankedTable(players) {
       else streakHtml = `<span style="color:#3b82f6;font-weight:700">❄️${Math.abs(p.streak)}</span>`;
     }
 
+    // Favori (étoile cliquable)
+    const isFav = isFavorite(p.public_id);
+    const favStar = isFav ? '★' : '☆';
+    const favClass = isFav ? 'fav-star active' : 'fav-star';
+    const favBtn = p.public_id
+      ? `<button class="${favClass}" onclick="event.stopPropagation();toggleFavorite('${esc(p.public_id)}','${esc(p.username)}')" title="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-label="${isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${favStar}</button>`
+      : '';
+
     html += `
-      <tr data-pid="${esc(p.public_id)}" style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;" 
-          onmouseover="this.style.background='var(--bg2)'" 
+      <tr data-pid="${esc(p.public_id)}" style="border-bottom: 1px solid var(--border); transition: background 0.2s; cursor:pointer;"
+          onmouseover="this.style.background='var(--bg2)'"
           onmouseout="this.style.background='transparent'"
           onclick="showRankedPlayerModal('${esc(p.public_id)}', '${esc(p.username)}')">
         <td style="padding: 12px 8px; font-weight: bold; color: ${p.rank <= 3 ? 'var(--accent)' : 'var(--text)'};">#${p.rank}</td>
         <td style="padding: 12px 8px;">
-          <span style="color: var(--text); text-decoration: none; font-weight: 500;">
-            ${p.clanTag ? `<span style="color:var(--text3);font-size:0.9em;margin-right:4px;">[${esc(p.clanTag)}]</span>` : ''}${esc(p.username)}
-          </span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${favBtn}
+            <span style="color: var(--text); text-decoration: none; font-weight: 500;">
+              ${p.clanTag ? `<span style="color:var(--text3);font-size:0.9em;margin-right:4px;">[${esc(p.clanTag)}]</span>` : ''}${esc(p.username)}
+            </span>
+          </div>
         </td>
         <td style="padding: 12px 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 700;">${p.elo}</td>
         <td style="padding: 12px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">${peakHtml}</td>
@@ -1643,7 +1665,7 @@ function renderRankedTable(players) {
       </tr>
     `;
   });
-  
+
   container.innerHTML = html;
 }
 
@@ -1750,18 +1772,157 @@ function scrollToMyRank(publicId) {
   setTimeout(() => { row.style.background = ''; }, 2000);
 }
 
-function filterRanked(query) {
-  if (!window._rankedPlayers) return;
-  const q = query.toLowerCase().trim();
-  if (!q) {
-    renderRankedTable(window._rankedPlayers);
-    return;
+// ====== FILTRES RANKED (top / favoris / recherche floue) ======
+window._rankedFilters = window._rankedFilters || { top: 'all', favOnly: false, query: '' };
+const FAVS_KEY = 'thefrontstats:favorites:v1';
+
+function getFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function saveFavorites(list) {
+  try { localStorage.setItem(FAVS_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function isFavorite(publicId) {
+  if (!publicId) return false;
+  return getFavorites().indexOf(publicId) !== -1;
+}
+
+function toggleFavorite(publicId, username) {
+  if (!publicId) return;
+  const list = getFavorites();
+  const idx = list.indexOf(publicId);
+  if (idx === -1) {
+    list.push(publicId);
+    try { showToast('⭐ ' + (username || 'Joueur') + ' ajouté aux favoris'); } catch (e) {}
+  } else {
+    list.splice(idx, 1);
+    try { showToast('☆ ' + (username || 'Joueur') + ' retiré des favoris'); } catch (e) {}
   }
-  const filtered = window._rankedPlayers.filter(p => 
-    (p.username || '').toLowerCase().includes(q) || 
-    (p.clanTag || '').toLowerCase().includes(q)
-  );
-  renderRankedTable(filtered);
+  saveFavorites(list);
+  updateFavCounter();
+  // Re-render pour mettre à jour les étoiles (et filtrer si mode favoris actif)
+  applyRankedFilters();
+}
+
+function updateFavCounter() {
+  const count = getFavorites().length;
+  const el = document.getElementById('fav-count');
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function toggleFavFilter() {
+  window._rankedFilters.favOnly = !window._rankedFilters.favOnly;
+  const btn = document.getElementById('fav-toggle');
+  if (btn) {
+    if (window._rankedFilters.favOnly) {
+      btn.classList.add('active');
+      const star = btn.querySelector('.fav-star');
+      if (star) star.textContent = '★';
+    } else {
+      btn.classList.remove('active');
+      const star = btn.querySelector('.fav-star');
+      if (star) star.textContent = '☆';
+    }
+  }
+  applyRankedFilters();
+}
+
+function setTopFilter(n) {
+  window._rankedFilters.top = n;
+  document.querySelectorAll('#ranked-toolbar .filter-btn[data-top]').forEach(b => {
+    b.classList.toggle('active', String(b.getAttribute('data-top')) === String(n));
+  });
+  applyRankedFilters();
+}
+
+// Normalisation : minuscules + suppression diacritiques (é→e, ñ→n...)
+function normalizeStr(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Recherche floue par sous-séquence : les lettres de q doivent apparaître
+// dans l'ordre dans target. Score = proximité (compactness).
+// Retourne -1 si pas de match, sinon un score (plus petit = meilleur).
+function fuzzyScore(query, target) {
+  if (!query) return 0;
+  if (!target) return -1;
+  const q = normalizeStr(query);
+  const t = normalizeStr(target);
+  if (!q) return 0;
+  // Match exact (includes) = priorité
+  if (t.indexOf(q) !== -1) return 0;
+  // Sous-séquence : parcourir target en cherchant chaque char de query dans l'ordre
+  let ti = 0, lastMatch = -1, totalGap = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const c = q[qi];
+    let found = -1;
+    for (; ti < t.length; ti++) {
+      if (t[ti] === c) { found = ti; ti++; break; }
+    }
+    if (found === -1) return -1; // char non trouvé → pas de match
+    if (lastMatch !== -1) totalGap += (found - lastMatch - 1);
+    lastMatch = found;
+  }
+  // Score = gap total (plus c'est compact, meilleur est le match)
+  return 1 + totalGap;
+}
+
+function applyRankedFilters() {
+  if (!window._rankedPlayers) return;
+  const f = window._rankedFilters;
+  let players = window._rankedPlayers.slice();
+
+  // 1. Filtre Top N
+  if (f.top !== 'all') {
+    const n = parseInt(f.top, 10);
+    if (!isNaN(n)) players = players.slice(0, n);
+  }
+
+  // 2. Filtre favoris
+  if (f.favOnly) {
+    const favs = new Set(getFavorites());
+    players = players.filter(p => favs.has(p.public_id));
+  }
+
+  // 3. Recherche floue
+  const q = (f.query || '').trim();
+  if (q) {
+    // Garde les matchs dont le score fuzzy est >= 0 (0 = match exact, >0 = fuzzy)
+    const scored = players
+      .map(p => {
+        const usernameScore = fuzzyScore(q, p.username);
+        const clanScore = fuzzyScore(q, p.clanTag);
+        const best = Math.min(
+          usernameScore === -1 ? Infinity : usernameScore,
+          clanScore === -1 ? Infinity : clanScore
+        );
+        return { p, score: best === Infinity ? -1 : best };
+      })
+      .filter(x => x.score !== -1)
+      .sort((a, b) => a.score - b.score);
+    players = scored.map(x => x.p);
+  }
+
+  renderRankedTable(players);
+}
+
+function filterRanked(query) {
+  window._rankedFilters.query = query || '';
+  applyRankedFilters();
 }
 
 function renderEloDistribution(players) {
@@ -1957,3 +2118,7 @@ window.showRankedPlayerModal = showRankedPlayerModal;
 window.renderMyRank = renderMyRank;
 window.scrollToMyRank = scrollToMyRank;
 window.closeRankedModal = closeRankedModal;
+window.setTopFilter = setTopFilter;
+window.toggleFavFilter = toggleFavFilter;
+window.toggleFavorite = toggleFavorite;
+window.isFavorite = isFavorite;

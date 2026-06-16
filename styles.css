@@ -557,3 +557,121 @@ button:active,.share-btn:active,.gg-btn:active,.runs-btn:active,.modal-close:act
     .cmp-row{flex-direction:column}
     .topbar h1{font-size:24px}
 }
+
+/* ====== RANKED TOOLBAR (filtres Top / Favoris) ====== */
+.ranked-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.filter-group {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.filter-btn {
+    background: transparent;
+    border: none;
+    color: var(--text2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filter-btn:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.filter-btn.active {
+    background: var(--accent);
+    color: var(--background);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.filter-btn.fav-toggle {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+}
+
+.filter-btn.fav-toggle:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.filter-btn.fav-toggle.active {
+    background: var(--gold);
+    color: #1a1a1a;
+    border-color: var(--gold);
+}
+
+.fav-count {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 18px;
+    text-align: center;
+}
+
+.filter-btn.fav-toggle.active .fav-count {
+    background: rgba(0, 0, 0, 0.25);
+    color: #1a1a1a;
+}
+
+/* Étoile favori dans le tableau */
+.fav-star {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+    color: var(--text3);
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.fav-star:hover {
+    color: var(--gold);
+    transform: scale(1.2);
+}
+
+.fav-star.active {
+    color: var(--gold);
+}
+
+@media (max-width: 600px) {
+    .ranked-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-group {
+        justify-content: space-between;
+    }
+    .filter-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 6px 8px;
+    }
+    .fav-toggle {
+        justify-content: center;
+    }
+}

@@ -82,15 +82,24 @@ export async function fetchOpenFront(apiPath, retries = 2) {
       return r.json();
     } catch (e) {
       lastError = e;
-      // If on first attempt and using corsproxy, try allorigins as fallback
-      if (attempt === 0 && CORS_PROXY_CONFIG === "corsproxy") {
+      // Try fallback CORS proxies on every attempt (helps with large responses >1MB)
+      if (CORS_PROXY_CONFIG === "corsproxy") {
         const path = apiPath.startsWith("/") ? apiPath : `/${apiPath}`;
-        const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(API_BASE + path)}`;
-        try {
-          const r = await fetch(fallbackUrl, { cache: "no-store" });
-          if (r.ok) return r.json();
-        } catch (fallbackErr) {
-          // Fallback also failed, continue to next retry
+        const encodedUrl = encodeURIComponent(API_BASE + path);
+        const fallbacks = [
+          `https://api.allorigins.win/raw?url=${encodedUrl}`,
+          `https://api.codetabs.com/v1/proxy/?quest=${encodedUrl}`,
+        ];
+        for (const fallbackUrl of fallbacks) {
+          try {
+            const r = await fetch(fallbackUrl, { cache: "no-store" });
+            if (r.ok) {
+              const text = await r.text();
+              try { return JSON.parse(text); } catch { /* not JSON */ }
+            }
+          } catch (fallbackErr) {
+            // continue to next fallback
+          }
         }
       }
       if (attempt < retries) {

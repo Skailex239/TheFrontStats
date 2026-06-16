@@ -706,19 +706,53 @@ function applySessionsFromFirestore(data) {
 }
 
 async function fetchOpenFrontPlayerData(publicId) {
-  if (!publicId) return { info: null, sessions: [] };
+  if (!publicId) return { info: null, sessions: [], notFound: false };
   let info = null;
   let sessions = [];
+  let notFound = false;
   try {
     try {
       info = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
-    } catch (e) { console.warn("[profile] Erreur fetch player info:", e.message); }
+    } catch (e) {
+      console.warn("[profile] Erreur fetch player info:", e.message);
+      if (e.message && e.message.includes("404")) notFound = true;
+    }
     try {
       const raw = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}/sessions`);
       sessions = parseSessionsPayload(raw, info);
-    } catch (e) { console.warn("[profile] Erreur fetch sessions:", e.message); }
+    } catch (e) {
+      console.warn("[profile] Erreur fetch sessions:", e.message);
+      if (e.message && e.message.includes("404")) notFound = true;
+    }
   } catch (e) { console.error("[profile] Erreur globale fetchOpenFrontPlayerData:", e); }
-  return { info, sessions };
+  return { info, sessions, notFound };
+}
+
+/**
+ * Build fallback sessions from runs.json (FFA speedrun wins) when the API fails.
+ * This ensures the user still sees their FFA stats even with an invalid publicId.
+ */
+function buildFallbackSessionsFromRuns(targetNames) {
+  if (!allRuns || allRuns.length === 0) return [];
+  const nameSet = new Set(targetNames.filter(Boolean));
+  const fallback = [];
+  allRuns.forEach((run) => {
+    if (!run.player || !nameSet.has(run.player)) return;
+    fallback.push({
+      gameId: run.id,
+      start: run.timestamp,
+      end: null,
+      username: run.player,
+      clientId: run.playerId,
+      clanTag: null,
+      map: run.map,
+      mode: "Free For All",
+      type: "Speedrun",
+      difficulty: run.difficulty,
+      hasWon: true, // runs.json only contains wins
+    });
+  });
+  return fallback;
 }
 
 /* ── Refresh profile ── */
@@ -729,6 +763,12 @@ async function refreshProfile() {
   const apiData = await fetchOpenFrontPlayerData(currentUser.publicId);
   apiPlayerInfo = apiData.info;
   apiSessions = apiData.sessions;
+
+  // Show clear error if publicId is invalid (404)
+  if (apiData.notFound) {
+    showApiError(`⚠️ Public ID « ${currentUser.publicId} » introuvable sur OpenFront. Vérifie ton ID dans les paramètres. Tes stats FFA locales sont affichées ci-dessous.`);
+  }
+
   if (apiSessions.length > 0) {
     playerClientIds = new Set(apiSessions.map((s) => s.clientId).filter(Boolean));
     playerAliases = new Set(apiSessions.map((s) => s.username).filter(Boolean));
@@ -742,6 +782,7 @@ async function refreshProfile() {
     const data = firestoreProfile || {};
     applySessionsFromFirestore(data);
   }
+
   if (apiSessions.length > 0 && currentUser.uid) {
     try {
       _skipNextSnapshot = true;
@@ -768,7 +809,19 @@ async function refreshProfile() {
       _skipNextSnapshot = false;
     }
   }
-  const sessions = apiSessions.length > 0 ? apiSessions : applySessionsFromFirestore(firestoreProfile || {});
+
+  // Build sessions: API → Firestore cache → fallback from runs.json (FFA wins)
+  let sessions = apiSessions.length > 0 ? apiSessions : applySessionsFromFirestore(firestoreProfile || {});
+  if (sessions.length === 0 && currentUser.name) {
+    // Last resort: build sessions from runs.json (FFA speedrun wins)
+    const allNames = new Set([currentUser.name, ...playerAliases]);
+    sessions = buildFallbackSessionsFromRuns([...allNames]);
+    if (sessions.length > 0) {
+      // Update apiSessions so period filter works
+      apiSessions = sessions;
+    }
+  }
+
   await publishPublicAliases(apiSessions);
   const filtered = filterSessionsByPeriod(sessions, currentPeriod);
   renderStatsRow(filtered, "profile");
@@ -1001,10 +1054,12 @@ async function showPublicProfile(targetName, publicId = null) {
 
     let pubApiSessions = [];
     let pubApiInfo = null;
+    let pubNotFound = false;
     if (publicId) {
       const apiData = await fetchOpenFrontPlayerData(publicId);
       pubApiSessions = apiData.sessions;
       pubApiInfo = apiData.info;
+      pubNotFound = apiData.notFound;
     }
     // Set module-level state so period filter works for public viewer too
     apiSessions = pubApiSessions;
@@ -1017,13 +1072,36 @@ async function showPublicProfile(targetName, publicId = null) {
     const av = document.getElementById("public-avatar-large");
     if (av) { av.textContent = targetName.slice(0,2).toUpperCase(); av.style.background = "linear-gradient(135deg, var(--accent), var(--accentL))"; }
 
-    if (pubApiSessions.length > 0) {
-      const filtered = filterSessionsByPeriod(pubApiSessions, currentPeriod);
+    // Show error banner if publicId is invalid (404)
+    if (pubNotFound) {
+      const errBox = document.getElementById("public-api-error");
+      if (errBox) {
+        errBox.hidden = false;
+        errBox.textContent = `⚠️ Public ID « ${publicId} » introuvable sur OpenFront. Affichage des stats FFA locales uniquement.`;
+      }
+    } else {
+      const errBox = document.getElementById("public-api-error");
+      if (errBox) { errBox.hidden = true; errBox.textContent = ""; }
+    }
+
+    // Build sessions: API → fallback from runs.json (FFA wins)
+    let sessions = pubApiSessions;
+    if (sessions.length === 0) {
+      // Fallback: build from runs.json FFA wins
+      sessions = buildFallbackSessionsFromRuns([targetName]);
+      if (sessions.length > 0) {
+        apiSessions = sessions;
+        pubApiSessions = sessions;
+      }
+    }
+
+    if (sessions.length > 0) {
+      const filtered = filterSessionsByPeriod(sessions, currentPeriod);
       document.getElementById("public-stat-global-rank").textContent = rank > 0 ? `#${rank}` : "—";
       renderStatsRow(filtered, "public");
       renderRecentGames(filtered, "public");
-      renderClanBadge(pubApiSessions, "public");
-      renderAliasesSection(pubApiSessions, "public");
+      renderClanBadge(sessions, "public");
+      renderAliasesSection(sessions, "public");
       renderWinrate(filtered, "public");
       renderEloPeak(publicId, "public");
       renderBigIntStats(pubApiInfo, "public");
@@ -1035,7 +1113,6 @@ async function showPublicProfile(targetName, publicId = null) {
       const box = document.getElementById("public-recent-games");
       if (target) box.innerHTML = target.runs.slice(-5).reverse().map(r => `<div class="feed-item" style="display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid var(--border)"><span>${esc(r.map)}</span><span style="color:var(--accent)">${formatTime(r.duration_s)}</span></div>`).join("");
       else box.innerHTML = "<p style='padding:16px;text-align:center;color:var(--text3)'>Aucune donnée.</p>";
-      // Even without sessions, render BigInt stats + ELO peak from player info if available
       renderEloPeak(publicId, "public");
       renderBigIntStats(pubApiInfo, "public");
     }

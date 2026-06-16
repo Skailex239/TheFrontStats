@@ -72,7 +72,7 @@ export async function fetchOpenFront(apiPath, retries = 2) {
   let lastError = null;
 
   // fetchWithTimeout: AbortController-based timeout to prevent hanging on unresponsive proxies
-  const fetchWithTimeout = async (url, ms = 8000) => {
+  const fetchWithTimeout = async (url, ms = 6000) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
     try {
@@ -94,17 +94,18 @@ export async function fetchOpenFront(apiPath, retries = 2) {
       return r.json();
     } catch (e) {
       lastError = e;
-      // Try fallback CORS proxies on every attempt (helps with large responses >1MB)
-      if (CORS_PROXY_CONFIG === "corsproxy") {
+      // Try fallback CORS proxies (helps with large responses >1MB)
+      // Only try fallbacks on first attempt to avoid compounding timeouts
+      if (attempt === 0 && CORS_PROXY_CONFIG === "corsproxy") {
         const path = apiPath.startsWith("/") ? apiPath : `/${apiPath}`;
         const encodedUrl = encodeURIComponent(API_BASE + path);
         const fallbacks = [
-          `https://api.allorigins.win/raw?url=${encodedUrl}`,
           `https://api.codetabs.com/v1/proxy/?quest=${encodedUrl}`,
+          `https://api.allorigins.win/raw?url=${encodedUrl}`,
         ];
         for (const fallbackUrl of fallbacks) {
           try {
-            const r = await fetchWithTimeout(fallbackUrl, 10000);
+            const r = await fetchWithTimeout(fallbackUrl, 8000);
             if (r.ok) {
               const text = await r.text();
               try { return JSON.parse(text); } catch { /* not JSON */ }
@@ -115,7 +116,7 @@ export async function fetchOpenFront(apiPath, retries = 2) {
         }
       }
       if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
       }
     }
   }

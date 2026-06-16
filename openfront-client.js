@@ -71,10 +71,22 @@ export function resolveOpenFrontFetchUrl(apiPath) {
 export async function fetchOpenFront(apiPath, retries = 2) {
   let lastError = null;
 
+  // fetchWithTimeout: AbortController-based timeout to prevent hanging on unresponsive proxies
+  const fetchWithTimeout = async (url, ms = 8000) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const r = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+      return r;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const url = resolveOpenFrontFetchUrl(apiPath);
-      const r = await fetch(url, { cache: "no-store" });
+      const r = await fetchWithTimeout(url);
       if (!r.ok) {
         const text = await r.text().catch(() => "");
         throw new Error(`HTTP ${r.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
@@ -92,13 +104,13 @@ export async function fetchOpenFront(apiPath, retries = 2) {
         ];
         for (const fallbackUrl of fallbacks) {
           try {
-            const r = await fetch(fallbackUrl, { cache: "no-store" });
+            const r = await fetchWithTimeout(fallbackUrl, 10000);
             if (r.ok) {
               const text = await r.text();
               try { return JSON.parse(text); } catch { /* not JSON */ }
             }
           } catch (fallbackErr) {
-            // continue to next fallback
+            // continue to next fallback (timeout or network error)
           }
         }
       }

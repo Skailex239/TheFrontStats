@@ -690,34 +690,6 @@ function renderBigIntStats(playerInfo, prefix) {
   `).join("")}</div>`;
 }
 
-// Debug exports (temporary)
-window.__debugRender = async function () {
-  const result = {
-    apiPlayerInfo: apiPlayerInfo ? "has stats: " + (!!apiPlayerInfo.stats) : "null",
-    apiSessions: apiSessions.length,
-    publicId: currentUser?.publicId || "none",
-  };
-  // Try rendering BigInt stats manually
-  try {
-    const info = await fetchOpenFront(`/public/player/A7x0szx9`);
-    result.fetchedInfo = "has stats: " + (!!info.stats);
-    result.statsKeys = info.stats ? Object.keys(info.stats).join(",") : "none";
-    renderBigIntStats(info, "public");
-    result.bigintHTML = document.getElementById("public-bigint-stats")?.innerHTML?.length + " chars";
-  } catch (e) {
-    result.fetchErr = e.message;
-  }
-  // Try ELO peak
-  try {
-    const peak = await computeEloPeak("A7x0szx9");
-    result.peak = peak ? JSON.stringify(peak) : "null";
-    renderEloPeak("A7x0szx9", "public");
-  } catch (e) {
-    result.peakErr = e.message;
-  }
-  return result;
-};
-
 /* ── OpenFront API fetch ── */
 
 function applySessionsFromFirestore(data) {

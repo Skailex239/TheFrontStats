@@ -8,6 +8,7 @@ export function normalizeSession(raw) {
     end: raw.end || raw.gameEnd || null,
     username: raw.username || null,
     clientId: raw.clientId || null,
+    clanTag: raw.clanTag || null,
     map: raw.map || raw.gameMap || null,
     mode: raw.mode || raw.gameMode || null,
     type: raw.type || raw.gameType || null,

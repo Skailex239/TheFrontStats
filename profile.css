@@ -929,3 +929,222 @@
     font-size:24px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════ *
+ *  PROFILE ENHANCEMENTS — 6 features from QCM Profil  *
+ * ═══════════════════════════════════════════════════ */
+
+/* Hero badges wrapper (badge + clan badge side by side) */
+.pf-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Clan badge (Feature 1) */
+.pf-clan-badge {
+  display: inline-flex;
+  align-items: center;
+}
+.pf-clan-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15));
+  border: 1px solid rgba(99,102,241,0.3);
+  color: var(--accent, #6366f1);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.pf-clan-tag:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(168,85,247,0.25));
+  border-color: rgba(99,102,241,0.5);
+  transform: translateY(-1px);
+}
+
+/* Period filter toolbar (Feature 5) */
+.pf-period-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: var(--bg2, rgba(255,255,255,0.03));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 12px;
+}
+.pf-period-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2, #aaa);
+  margin-right: 4px;
+}
+.pf-period-btn {
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  background: transparent;
+  color: var(--text2, #aaa);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.pf-period-btn:hover {
+  border-color: var(--accent, #6366f1);
+  color: var(--text, #fff);
+}
+.pf-period-btn.active {
+  background: var(--accent, #6366f1);
+  border-color: var(--accent, #6366f1);
+  color: #fff;
+}
+
+/* Aliases section (Feature 2) */
+.pf-aliases-section {
+  margin-bottom: 16px !important;
+}
+.pf-aliases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 0;
+}
+.pf-aliases-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+.pf-aliases-toggle {
+  background: none;
+  border: none;
+  color: var(--accent, #6366f1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.pf-aliases-list {
+  margin-top: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.08));
+}
+.pf-alias-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.05));
+  font-size: 13px;
+}
+.pf-alias-name {
+  font-weight: 600;
+  color: var(--text, #fff);
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-alias-count {
+  color: var(--accent, #6366f1);
+  font-weight: 500;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pf-alias-dates {
+  color: var(--text3, #666);
+  font-size: 11px;
+  text-align: right;
+}
+
+/* Stat sub-label (for ELO Peak date, Winrate last 20) */
+.pf-stat-val .pf-stat-sub {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text3, #666);
+  margin-top: 2px;
+  line-height: 1;
+}
+
+/* Winrate color coding */
+.pf-wr-good { color: #22c55e; }
+.pf-wr-mid { color: #f59e0b; }
+.pf-wr-low { color: #ef4444; }
+
+/* Section hint */
+.pf-section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text3, #666);
+}
+
+/* BigInt stats grid (Feature 6) */
+.pf-bigint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.pf-bigint-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border-radius: 10px;
+  background: var(--bg2, rgba(255,255,255,0.03));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  text-align: center;
+  transition: transform 0.18s, border-color 0.18s;
+}
+.pf-bigint-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent, #6366f1);
+}
+.pf-bigint-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.pf-bigint-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #fff);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.pf-bigint-lbl {
+  font-size: 11px;
+  color: var(--text3, #888);
+  line-height: 1.2;
+}
+
+/* Mobile responsive */
+@media (max-width: 700px) {
+  .pf-bigint-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pf-alias-row {
+    flex-wrap: wrap;
+  }
+  .pf-alias-dates {
+    width: 100%;
+    font-size: 10px;
+  }
+  .pf-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

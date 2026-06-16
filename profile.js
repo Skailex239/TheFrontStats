@@ -21,6 +21,10 @@ let apiSessions = [];
 
 let aliasMap = {};
 
+/* ── Profile enhancements state ── */
+let currentPeriod = 0; // 0 = all, 7/30/90 = days
+let rankedHistoryCache = null; // lazy-loaded ranked_history.json
+
 /* ── Helpers ── */
 
 function formatDate(iso) {
@@ -379,6 +383,313 @@ function formatDuration(s) {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
+/* ═══════════════════════════════════════════════════ *
+ *  PROFILE ENHANCEMENTS — 6 features from QCM Profil  *
+ * ═══════════════════════════════════════════════════ */
+
+/* ── Period filter (Feature 5) ── */
+
+function filterSessionsByPeriod(sessions, days) {
+  if (!days || days <= 0) return sessions;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return sessions.filter((s) => {
+    const t = new Date(s.start || s.end || 0).getTime();
+    return t >= cutoff;
+  });
+}
+
+window.setProfilePeriod = function (days) {
+  currentPeriod = days;
+  // Update active button states (both profile-main and public viewer)
+  document.querySelectorAll(".pf-period-btn").forEach((btn) => {
+    btn.classList.toggle("active", parseInt(btn.dataset.days) === days);
+  });
+  const sessions = apiSessions.length > 0
+    ? apiSessions
+    : applySessionsFromFirestore(firestoreProfile || {});
+  const filtered = filterSessionsByPeriod(sessions, currentPeriod);
+  renderStatsRow(filtered, "profile");
+  renderMonthlyChart(filtered);
+  renderRecentGames(filtered, "profile");
+  renderWinrate(filtered, "profile");
+  // Re-render public viewer stats if visible
+  if (document.getElementById("profile-public-viewer")?.style.display !== "none") {
+    renderStatsRow(filtered, "public");
+    renderRecentGames(filtered, "public");
+    renderWinrate(filtered, "public");
+  }
+};
+
+/* ── Clan badge (Feature 1) ── */
+
+function computeClanTag(sessions) {
+  // Most recent session with a clanTag wins
+  const sorted = [...sessions]
+    .filter((s) => s.clanTag)
+    .sort((a, b) => new Date(b.start || b.end || 0).getTime() - new Date(a.start || a.end || 0).getTime());
+  return sorted[0]?.clanTag || null;
+}
+
+function renderClanBadge(sessions, prefix) {
+  const el = document.getElementById(`${prefix}-clan-badge`);
+  if (!el) return;
+  const tag = computeClanTag(sessions);
+  if (!tag) {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "inline-flex";
+  el.innerHTML = `<a href="index.html?tab=global&clan=${encodeURIComponent(tag)}" class="pf-clan-tag" title="Voir le classement du clan ${esc(tag)}">🛡️ ${esc(tag)}</a>`;
+}
+
+/* ── Pseudos history (Feature 2) ── */
+
+function computeAliases(sessions) {
+  const map = {};
+  sessions.forEach((s) => {
+    if (!s.username) return;
+    if (!map[s.username]) {
+      map[s.username] = { name: s.username, firstSeen: Infinity, lastSeen: 0, count: 0 };
+    }
+    const t = new Date(s.start || s.end || 0).getTime();
+    if (t > 0) {
+      if (t < map[s.username].firstSeen) map[s.username].firstSeen = t;
+      if (t > map[s.username].lastSeen) map[s.username].lastSeen = t;
+    }
+    map[s.username].count++;
+  });
+  return Object.values(map).sort((a, b) => b.count - a.count);
+}
+
+function renderAliasesSection(sessions, prefix) {
+  const el = document.getElementById(`${prefix}-aliases`);
+  if (!el) return;
+  const aliases = computeAliases(sessions);
+  if (aliases.length <= 1) {
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "block";
+  const summary = document.getElementById(`${prefix}-aliases-summary`);
+  if (summary) summary.textContent = `${aliases.length} pseudos connus`;
+  const list = document.getElementById(`${prefix}-aliases-list`);
+  if (list) {
+    list.innerHTML = aliases.map((a) => {
+      const first = a.firstSeen === Infinity ? "—" : formatDate(new Date(a.firstSeen).toISOString());
+      const last = a.lastSeen === 0 ? "—" : formatDate(new Date(a.lastSeen).toISOString());
+      return `
+        <div class="pf-alias-row">
+          <span class="pf-alias-name">${esc(a.name)}</span>
+          <span class="pf-alias-count">${a.count} partie${a.count > 1 ? "s" : ""}</span>
+          <span class="pf-alias-dates">${first} → ${last}</span>
+        </div>`;
+    }).join("");
+  }
+}
+
+window.toggleAliases = function (prefix) {
+  const list = document.getElementById(`${prefix}-aliases-list`);
+  if (!list) return;
+  const open = list.style.display !== "none";
+  list.style.display = open ? "none" : "block";
+  const btn = document.getElementById(`${prefix}-aliases-toggle`);
+  if (btn) btn.textContent = open ? "▸ Voir tout" : "▾ Réduire";
+};
+
+/* ── ELO Peak (Feature 3) ── */
+
+async function loadRankedHistory() {
+  if (rankedHistoryCache !== null) return rankedHistoryCache;
+  try {
+    let data = null;
+    // Try .gz first (same pattern as loadRunsData)
+    try {
+      const res = await fetch(`ranked_history.json.gz?_=${Date.now()}`);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        const ds = new DecompressionStream("gzip");
+        const out = await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer();
+        data = JSON.parse(new TextDecoder().decode(out));
+      }
+    } catch (e) {
+      console.warn("[profile] ranked_history.json.gz failed, trying plain:", e.message);
+    }
+    if (!data) {
+      const res = await fetch(`ranked_history.json?_=${Date.now()}`);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      data = await res.json();
+    }
+    rankedHistoryCache = data || {};
+  } catch (e) {
+    console.warn("[profile] loadRankedHistory error:", e.message);
+    rankedHistoryCache = {};
+  }
+  return rankedHistoryCache;
+}
+
+async function computeEloPeak(publicId) {
+  if (!publicId) return null;
+  const history = await loadRankedHistory();
+  const snapshots = history[publicId];
+  if (!Array.isArray(snapshots) || snapshots.length === 0) return null;
+  let peak = null;
+  for (const snap of snapshots) {
+    if (snap && typeof snap.elo === "number" && (!peak || snap.elo > peak.elo)) {
+      peak = { elo: snap.elo, t: snap.t, rank: snap.rank };
+    }
+  }
+  return peak;
+}
+
+async function renderEloPeak(publicId, prefix) {
+  const el = document.getElementById(`${prefix}-stat-elopeak`);
+  if (!el || !publicId) return;
+  const peak = await computeEloPeak(publicId);
+  if (!peak) {
+    el.textContent = "—";
+    return;
+  }
+  const dateStr = peak.t
+    ? new Date(peak.t).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : "";
+  el.innerHTML = `${peak.elo}${dateStr ? `<span class="pf-stat-sub">${dateStr}</span>` : ""}`;
+}
+
+/* ── Winrate (Feature 4) ── */
+
+function computeWinrate(sessions) {
+  const wins = sessions.filter((s) => s.hasWon).length;
+  const losses = sessions.filter((s) => s.hasWon === false).length;
+  const total = wins + losses;
+  const global = total > 0 ? Math.round((wins / total) * 100) : 0;
+  // Last 20 by date desc
+  const sorted = [...sessions]
+    .sort((a, b) => new Date(b.start || b.end || 0).getTime() - new Date(a.start || a.end || 0).getTime())
+    .slice(0, 20);
+  const lWins = sorted.filter((s) => s.hasWon).length;
+  const lTotal = sorted.length;
+  const last20 = lTotal > 0 ? Math.round((lWins / lTotal) * 100) : 0;
+  return { wins, losses, total, global, last20, lWins, lTotal };
+}
+
+function renderWinrate(sessions, prefix) {
+  const el = document.getElementById(`${prefix}-stat-winrate`);
+  if (!el) return;
+  const wr = computeWinrate(sessions);
+  const colorClass = wr.global >= 60 ? "good" : wr.global >= 40 ? "mid" : "low";
+  el.innerHTML = `<span class="pf-wr-${colorClass}">${wr.global}%</span><span class="pf-stat-sub">Last 20: ${wr.last20}%</span>`;
+}
+
+/* ── BigInt stats détaillées (Feature 6) ── */
+
+function fmtBigInt(strVal) {
+  if (strVal == null) return "—";
+  try {
+    const n = BigInt(strVal);
+    if (n >= 1_000_000_000) return (Number(n) / 1e9).toFixed(2) + "B";
+    if (n >= 1_000_000) return (Number(n) / 1e6).toFixed(2) + "M";
+    if (n >= 1_000) return (Number(n) / 1e3).toFixed(1) + "K";
+    return n.toString();
+  } catch {
+    return String(strVal);
+  }
+}
+
+function aggregateBigIntStats(statsObj) {
+  // Sum wins/losses across all Type×Mode×Difficulty, and aggregate the inner stats arrays (take max quartile = p90)
+  const agg = { wins: 0n, losses: 0n, total: 0n, attacks: 0n, betrayals: 0n, gold: 0n,
+    boats: 0n, bombs: 0n, units: 0n };
+  if (!statsObj || typeof statsObj !== "object") return agg;
+  for (const typeKey of Object.keys(statsObj)) {
+    const typeVal = statsObj[typeKey];
+    if (!typeVal || typeof typeVal !== "object") continue;
+    for (const modeKey of Object.keys(typeVal)) {
+      const modeVal = typeVal[modeKey];
+      if (!modeVal || typeof modeVal !== "object") continue;
+      for (const diffKey of Object.keys(modeVal)) {
+        const leaf = modeVal[diffKey];
+        if (!leaf || typeof leaf !== "object") continue;
+        try { agg.wins += BigInt(leaf.wins || 0); } catch {}
+        try { agg.losses += BigInt(leaf.losses || 0); } catch {}
+        try { agg.total += BigInt(leaf.total || 0); } catch {}
+        const s = leaf.stats;
+        if (!s) continue;
+        // attacks: array of 3 — take sum
+        if (Array.isArray(s.attacks)) {
+          s.attacks.forEach((v) => { try { agg.attacks += BigInt(v); } catch {} });
+        }
+        try { agg.betrayals += BigInt(s.betrayals || 0); } catch {}
+        // gold: array of 6 — take max
+        if (Array.isArray(s.gold)) {
+          let gMax = 0n;
+          s.gold.forEach((v) => { try { const b = BigInt(v); if (b > gMax) gMax = b; } catch {} });
+          agg.gold += gMax;
+        }
+        // boats: trade[4] + trans[4] — take max of each, sum
+        if (s.boats) {
+          ["trade", "trans"].forEach((k) => {
+            if (Array.isArray(s.boats[k])) {
+              let bMax = 0n;
+              s.boats[k].forEach((v) => { try { const b = BigInt(v); if (b > bMax) bMax = b; } catch {} });
+              agg.boats += bMax;
+            }
+          });
+        }
+        // bombs: abomb[3], hbomb[3], mirv[3], mirvw[3] — take max of each, sum
+        if (s.bombs) {
+          ["abomb", "hbomb", "mirv", "mirvw"].forEach((k) => {
+            if (Array.isArray(s.bombs[k])) {
+              let bMax = 0n;
+              s.bombs[k].forEach((v) => { try { const b = BigInt(v); if (b > bMax) bMax = b; } catch {} });
+              agg.bombs += bMax;
+            }
+          });
+        }
+        // units: city[4], defp[4], etc. — take max of each, sum
+        if (s.units) {
+          ["city", "defp", "port", "saml", "silo", "fact", "wshp"].forEach((k) => {
+            if (Array.isArray(s.units[k])) {
+              let uMax = 0n;
+              s.units[k].forEach((v) => { try { const b = BigInt(v); if (b > uMax) uMax = b; } catch {} });
+              agg.units += uMax;
+            }
+          });
+        }
+      }
+    }
+  }
+  return agg;
+}
+
+function renderBigIntStats(playerInfo, prefix) {
+  const el = document.getElementById(`${prefix}-bigint-stats`);
+  if (!el) return;
+  if (!playerInfo || !playerInfo.stats) {
+    el.innerHTML = `<div class="pf-empty">Stats détaillées indisponibles.</div>`;
+    return;
+  }
+  const agg = aggregateBigIntStats(playerInfo.stats);
+  const totalGames = agg.wins + agg.losses;
+  const wr = totalGames > 0n ? Math.round(Number((agg.wins * 100n) / totalGames)) : 0;
+  const cards = [
+    { icon: "⚔️", label: "Attaques", val: fmtBigInt(agg.attacks.toString()) },
+    { icon: "💰", label: "Or (max/game)", val: fmtBigInt(agg.gold.toString()) },
+    { icon: "🚢", label: "Bateaux (max/game)", val: fmtBigInt(agg.boats.toString()) },
+    { icon: "💣", label: "Bombes (max/game)", val: fmtBigInt(agg.bombs.toString()) },
+    { icon: "🪖", label: "Unités (max/game)", val: fmtBigInt(agg.units.toString()) },
+    { icon: "🗡️", label: "Trahissements", val: fmtBigInt(agg.betrayals.toString()) },
+    { icon: "🎮", label: "Parties totales", val: fmtBigInt(agg.total.toString()) },
+    { icon: "📊", label: "Winrate global", val: wr + "%" },
+  ];
+  el.innerHTML = `<div class="pf-bigint-grid">${cards.map((c) => `
+    <div class="pf-bigint-card">
+      <div class="pf-bigint-icon">${c.icon}</div>
+      <div class="pf-bigint-val">${esc(c.val)}</div>
+      <div class="pf-bigint-lbl">${esc(c.label)}</div>
+    </div>
+  `).join("")}</div>`;
+}
+
 /* ── OpenFront API fetch ── */
 
 function applySessionsFromFirestore(data) {
@@ -459,9 +770,15 @@ async function refreshProfile() {
   }
   const sessions = apiSessions.length > 0 ? apiSessions : applySessionsFromFirestore(firestoreProfile || {});
   await publishPublicAliases(apiSessions);
-  renderStatsRow(sessions, "profile");
-  renderMonthlyChart(sessions);
-  renderRecentGames(sessions, "profile");
+  const filtered = filterSessionsByPeriod(sessions, currentPeriod);
+  renderStatsRow(filtered, "profile");
+  renderMonthlyChart(filtered);
+  renderRecentGames(filtered, "profile");
+  renderClanBadge(sessions, "profile");
+  renderAliasesSection(sessions, "profile");
+  renderWinrate(filtered, "profile");
+  renderEloPeak(currentUser.publicId, "profile");
+  renderBigIntStats(apiPlayerInfo, "profile");
   if (currentUser && currentUser.publicId) {
     loadRankedGames(currentUser.publicId, "profile-ranked-games");
   }
@@ -682,23 +999,34 @@ async function showPublicProfile(targetName, publicId = null) {
     let rank = 0;
     for (let i=0; i<sorted.length; i++) if (sorted[i][0] === targetName) { rank = i+1; break; }
 
-    let apiSessions = [];
+    let pubApiSessions = [];
+    let pubApiInfo = null;
     if (publicId) {
       const apiData = await fetchOpenFrontPlayerData(publicId);
-      apiSessions = apiData.sessions;
+      pubApiSessions = apiData.sessions;
+      pubApiInfo = apiData.info;
     }
+    // Set module-level state so period filter works for public viewer too
+    apiSessions = pubApiSessions;
+    apiPlayerInfo = pubApiInfo;
 
     showProfileView("profile-public-viewer");
     document.getElementById("public-title-name").textContent = targetName;
     document.getElementById("public-profile-badge").textContent = publicId ? `Profil public (${publicId})` : "Profil public";
-    
+
     const av = document.getElementById("public-avatar-large");
     if (av) { av.textContent = targetName.slice(0,2).toUpperCase(); av.style.background = "linear-gradient(135deg, var(--accent), var(--accentL))"; }
 
-    if (apiSessions.length > 0) {
+    if (pubApiSessions.length > 0) {
+      const filtered = filterSessionsByPeriod(pubApiSessions, currentPeriod);
       document.getElementById("public-stat-global-rank").textContent = rank > 0 ? `#${rank}` : "—";
-      renderStatsRow(apiSessions, "public");
-      renderRecentGames(apiSessions, "public");
+      renderStatsRow(filtered, "public");
+      renderRecentGames(filtered, "public");
+      renderClanBadge(pubApiSessions, "public");
+      renderAliasesSection(pubApiSessions, "public");
+      renderWinrate(filtered, "public");
+      renderEloPeak(publicId, "public");
+      renderBigIntStats(pubApiInfo, "public");
     } else {
       const target = stats[targetName];
       document.getElementById("public-stat-wins").textContent = target ? target.wins : 0;

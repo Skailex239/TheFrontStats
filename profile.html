@@ -20,7 +20,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="favicon-official.png">
   <link rel="stylesheet" href="styles.css?v=19">
   <link rel="stylesheet" href="auth.css?v=14">
-  <link rel="stylesheet" href="profile.css?v=12">
+  <link rel="stylesheet" href="profile.css?v=13">
   <link rel="stylesheet" href="animations.css" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="animations.css"></noscript>
   <link rel="stylesheet" href="toast.css">
@@ -121,10 +121,32 @@
         <div class="pf-avatar" id="public-avatar-large"></div>
         <div class="pf-hero-info">
           <h1 class="pf-name" id="public-title-name">—</h1>
-          <span class="pf-badge" id="public-profile-badge">Profil public</span>
+          <div class="pf-hero-badges">
+            <span class="pf-badge" id="public-profile-badge">Profil public</span>
+            <span class="pf-clan-badge" id="public-clan-badge" style="display:none"></span>
+          </div>
         </div>
       </div>
-      <div class="pf-stats-row" style="grid-template-columns: repeat(3, 1fr);">
+
+      <!-- Period filter -->
+      <div class="pf-period-toolbar">
+        <span class="pf-period-label">Période :</span>
+        <button class="pf-period-btn" data-days="7" onclick="setProfilePeriod(7)">7j</button>
+        <button class="pf-period-btn" data-days="30" onclick="setProfilePeriod(30)">30j</button>
+        <button class="pf-period-btn" data-days="90" onclick="setProfilePeriod(90)">90j</button>
+        <button class="pf-period-btn active" data-days="0" onclick="setProfilePeriod(0)">Tout</button>
+      </div>
+
+      <!-- Pseudos connus -->
+      <div class="pf-section pf-aliases-section" id="public-aliases" style="display:none">
+        <div class="pf-aliases-header" onclick="toggleAliases('public')">
+          <span class="pf-aliases-title">📛 <span id="public-aliases-summary">Pseudos connus</span></span>
+          <button class="pf-aliases-toggle" id="public-aliases-toggle">▸ Voir tout</button>
+        </div>
+        <div class="pf-aliases-list" id="public-aliases-list" style="display:none"></div>
+      </div>
+
+      <div class="pf-stats-row" style="grid-template-columns: repeat(4, 1fr);">
         <div class="pf-stat">
           <div class="pf-stat-val" id="public-stat-wins">0</div>
           <div class="pf-stat-lbl">Victoires</div>
@@ -138,6 +160,10 @@
           <div class="pf-stat-lbl">Rang</div>
         </div>
         <div class="pf-stat">
+          <div class="pf-stat-val" id="public-stat-winrate">—</div>
+          <div class="pf-stat-lbl">Winrate</div>
+        </div>
+        <div class="pf-stat">
           <div class="pf-stat-val" id="public-stat-playtime">0h</div>
           <div class="pf-stat-lbl">Temps joué (est.)</div>
         </div>
@@ -148,6 +174,10 @@
         <div class="pf-stat">
           <div class="pf-stat-val" id="public-stat-avgtime">—</div>
           <div class="pf-stat-lbl">Temps moyen</div>
+        </div>
+        <div class="pf-stat">
+          <div class="pf-stat-val" id="public-stat-elopeak">—</div>
+          <div class="pf-stat-lbl">ELO Peak</div>
         </div>
       </div>
       <div class="pf-section">
@@ -161,6 +191,10 @@
         <div class="pf-games" id="public-recent-games">
           <div class="loading">Chargement...</div>
         </div>
+      </div>
+      <div class="pf-section">
+        <h2 class="pf-section-title">🎖️ Stats détaillées <span class="pf-section-hint">(cumul toutes parties)</span></h2>
+        <div id="public-bigint-stats"></div>
       </div>
     </div>
 
@@ -189,7 +223,10 @@
       <div class="pf-avatar" id="profile-avatar-large"></div>
       <div class="pf-hero-info">
         <h1 class="pf-name" id="profile-title-name">—</h1>
-        <span class="pf-badge" id="profile-public-badge">—</span>
+        <div class="pf-hero-badges">
+          <span class="pf-badge" id="profile-public-badge">—</span>
+          <span class="pf-clan-badge" id="profile-clan-badge" style="display:none"></span>
+        </div>
       </div>
       <button class="pf-edit-btn" onclick="toggleEditPanel()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -247,8 +284,26 @@
       </div>
     </div>
 
+    <!-- Period filter -->
+    <div class="pf-period-toolbar">
+      <span class="pf-period-label">Période :</span>
+      <button class="pf-period-btn" data-days="7" onclick="setProfilePeriod(7)">7j</button>
+      <button class="pf-period-btn" data-days="30" onclick="setProfilePeriod(30)">30j</button>
+      <button class="pf-period-btn" data-days="90" onclick="setProfilePeriod(90)">90j</button>
+      <button class="pf-period-btn active" data-days="0" onclick="setProfilePeriod(0)">Tout</button>
+    </div>
+
+    <!-- Pseudos connus -->
+    <div class="pf-section pf-aliases-section" id="profile-aliases" style="display:none">
+      <div class="pf-aliases-header" onclick="toggleAliases('profile')">
+        <span class="pf-aliases-title">📛 <span id="profile-aliases-summary">Pseudos connus</span></span>
+        <button class="pf-aliases-toggle" id="profile-aliases-toggle">▸ Voir tout</button>
+      </div>
+      <div class="pf-aliases-list" id="profile-aliases-list" style="display:none"></div>
+    </div>
+
     <!-- Stats rapides -->
-    <div class="pf-stats-row" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="pf-stats-row" style="grid-template-columns: repeat(4, 1fr);">
       <div class="pf-stat">
         <div class="pf-stat-val" id="profile-stat-wins">0</div>
         <div class="pf-stat-lbl">Victoires</div>
@@ -262,6 +317,10 @@
         <div class="pf-stat-lbl">Rang</div>
       </div>
       <div class="pf-stat">
+        <div class="pf-stat-val" id="profile-stat-winrate">—</div>
+        <div class="pf-stat-lbl">Winrate</div>
+      </div>
+      <div class="pf-stat">
         <div class="pf-stat-val" id="profile-stat-playtime">0h</div>
         <div class="pf-stat-lbl">Temps joué (est.)</div>
       </div>
@@ -272,6 +331,10 @@
       <div class="pf-stat">
         <div class="pf-stat-val" id="profile-stat-avgtime">—</div>
         <div class="pf-stat-lbl">Temps moyen</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat-val" id="profile-stat-elopeak">—</div>
+        <div class="pf-stat-lbl">ELO Peak</div>
       </div>
     </div>
 
@@ -295,6 +358,12 @@
       <div class="pf-games" id="profile-recent-games">
         <div class="loading">Chargement...</div>
       </div>
+    </div>
+
+    <!-- Stats détaillées BigInt -->
+    <div class="pf-section">
+      <h2 class="pf-section-title">🎖️ Stats détaillées <span class="pf-section-hint">(cumul toutes parties)</span></h2>
+      <div id="profile-bigint-stats"></div>
     </div>
   </div>
 

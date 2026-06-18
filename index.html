@@ -419,18 +419,38 @@
     <button class="modal-close" onclick="closeProfileModal()" style="position:absolute;top:12px;right:12px">&times;</button>
     <div class="modal-header">
       <div class="modal-title">Finaliser votre profil</div>
-      <div class="modal-subtitle">Choisissez un pseudo et votre Public ID (définitif, non modifiable ensuite).</div>
+      <div class="modal-subtitle">Liez votre compte OpenFront pour fusionner vos stats.</div>
     </div>
     <div class="auth-form">
-      <div class="form-group">
-        <label for="profile-username">Nom d'utilisateur</label>
-        <input type="text" id="profile-username" placeholder="Ex: Skailex">
+      <!-- Step 1: username + publicId -->
+      <div id="profile-setup-step1">
+        <div class="form-group">
+          <label for="profile-username">Nom d'utilisateur OpenFront</label>
+          <input type="text" id="profile-username" placeholder="Ex: Skailex">
+        </div>
+        <div class="form-group">
+          <label for="profile-public-id">Public ID OpenFront (8 caractères)</label>
+          <input type="text" id="profile-public-id" placeholder="Ex: HabCsQYR" maxlength="8">
+        </div>
+        <button class="auth-btn" onclick="startOwnershipVerification()" style="width:100%;justify-content:center;background:var(--orange);color:#fff;border-color:var(--orange)">Vérifier mon compte</button>
       </div>
-      <div class="form-group">
-        <label for="profile-public-id">Public ID OpenFront</label>
-        <input type="text" id="profile-public-id" placeholder="Votre ID public">
+      <!-- Step 2: ownership challenge -->
+      <div id="profile-setup-step2" style="display:none">
+        <div style="background:var(--orange-pale);border:1px solid var(--orange);border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:600;color:var(--orange);margin-bottom:6px">🔑 Code de vérification : <span id="ownership-code" style="font-family:var(--mono);font-size:16px"></span></div>
+          <div style="font-size:13px;color:var(--text)">
+            Pour prouver que vous êtes bien ce joueur :
+          </div>
+          <ol style="font-size:13px;color:var(--text);padding-left:20px;margin:8px 0">
+            <li>Modifiez votre pseudo OpenFront dans les paramètres du jeu</li>
+            <li>Ajoutez le code ci-dessus à votre pseudo (ex: <strong id="ownership-example"></strong>)</li>
+            <li>Jouez au moins une partie (ou utilisez un pseudo déjà utilisé récemment)</li>
+            <li>Cliquez sur "Confirmer" ci-dessous</li>
+          </ol>
+        </div>
+        <button class="auth-btn" onclick="confirmOwnershipVerification()" id="confirm-ownership-btn" style="width:100%;justify-content:center;background:var(--orange);color:#fff;border-color:var(--orange)">Confirmer</button>
+        <button class="auth-btn" onclick="cancelOwnershipVerification()" style="width:100%;justify-content:center;margin-top:8px;background:transparent;color:var(--muted)">Retour</button>
       </div>
-      <button class="auth-btn" onclick="saveUserProfile()" style="width:100%;justify-content:center;background:var(--orange);color:#fff;border-color:var(--orange)">Enregistrer le profil</button>
     </div>
   </div>
 </div>

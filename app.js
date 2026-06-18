@@ -97,7 +97,7 @@ onSnapshot(collection(db, "likes"), (snapshot) => {
 });
 
 onAuthStateChanged(auth, async (user) => {
-  redirectToProfileIfRequested();
+  // L9: redirectToProfileIfRequested() is called once at module load (line ~1452), not here
   if (user) {
     // Vérifier si le profil existe déjà dans Firestore
     const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -252,11 +252,17 @@ function closeProfileModal() {
 }
 window.closeProfileModal = closeProfileModal;
 
-window.saveUserProfile = async () => {
+// L7: Ownership verification state
+let _ownershipCode = null;
+let _ownershipPublicId = null;
+let _ownershipUsername = null;
+
+// L7+L8: Step 1 — validate format, check API existence, generate challenge code
+window.startOwnershipVerification = async () => {
   const username = document.getElementById('profile-username').value.trim();
   const publicId = document.getElementById('profile-public-id').value.trim();
 
-  // Form validation
+  // L8: Form validation
   if (!username || !publicId) {
     showToast("Veuillez remplir tous les champs.", "warning");
     return;
@@ -265,8 +271,9 @@ window.saveUserProfile = async () => {
     showToast("Le pseudo doit faire entre 2 et 30 caractères.", "warning");
     return;
   }
-  if (publicId.length < 3) {
-    showToast("Le Public ID doit faire au moins 3 caractères.", "warning");
+  // L8: OpenFront publicId is exactly 8 alphanumeric chars
+  if (!/^[A-Za-z0-9]{8}$/.test(publicId)) {
+    showToast("Le Public ID doit faire exactement 8 caractères alphanumériques (ex: HabCsQYR).", "warning");
     return;
   }
   if (/[^a-zA-Z0-9_\- ]/.test(username)) {
@@ -274,16 +281,109 @@ window.saveUserProfile = async () => {
     return;
   }
 
+  // L8: Check that publicId is not already linked to another account
   try {
     const existing = (await getDoc(doc(db, "users", currentUser.uid))).data() || {};
     if (existing.publicId && existing.publicId !== publicId) {
       showToast("Le Public ID OpenFront ne peut plus être modifié.", "error");
       return;
     }
+  } catch (e) {
+    console.warn("[ownership] Could not check existing profile:", e.message);
+  }
+
+  // L8: Verify publicId exists via OpenFront API
+  showToast("Vérification du Public ID...", "info", 3000);
+  try {
+    const { fetchOpenFront } = await import('./openfront-client.js');
+    const playerData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
+    if (!playerData || !playerData.games) {
+      showToast("Public ID introuvable sur OpenFront. Vérifiez votre saisie.", "error");
+      return;
+    }
+  } catch (e) {
+    showToast("Impossible de vérifier le Public ID (API indisponible). Réessayez plus tard.", "error");
+    console.error("[ownership] API check failed:", e);
+    return;
+  }
+
+  // L7: Generate challenge code
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  _ownershipCode = "TFS-";
+  for (let i = 0; i < 4; i++) _ownershipCode += chars[Math.floor(Math.random() * chars.length)];
+  _ownershipPublicId = publicId;
+  _ownershipUsername = username;
+
+  // Show step 2
+  document.getElementById('profile-setup-step1').style.display = 'none';
+  document.getElementById('profile-setup-step2').style.display = 'block';
+  document.getElementById('ownership-code').textContent = _ownershipCode;
+  document.getElementById('ownership-example').textContent = _ownershipCode + " " + username;
+  showToast("Code généré. Suivez les instructions ci-dessous.", "info");
+};
+
+// L7: Step 2 — confirm by checking that the code appears in recent sessions
+window.confirmOwnershipVerification = async () => {
+  if (!_ownershipCode || !_ownershipPublicId) return;
+  const btn = document.getElementById('confirm-ownership-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Vérification...";
+
+  try {
+    const { fetchOpenFront } = await import('./openfront-client.js');
+    const playerData = await fetchOpenFront(`/public/player/${encodeURIComponent(_ownershipPublicId)}`);
+
+    // L7: Search for the challenge code in recent game usernames
+    const games = playerData.games || [];
+    let found = false;
+    for (const g of games) {
+      if (g.username && g.username.includes(_ownershipCode)) {
+        found = true;
+        break;
+      }
+    }
+    // Also check the main username field
+    if (!found && playerData.user && playerData.user.username && playerData.user.username.includes(_ownershipCode)) {
+      found = true;
+    }
+
+    if (!found) {
+      showToast("Code non trouvé dans vos parties récentes. Assurez-vous d'avoir joué avec le code dans votre pseudo.", "error", 6000);
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+
+    // L7: Verification successful — save profile
+    await saveUserProfile(_ownershipUsername, _ownershipPublicId);
+  } catch (e) {
+    console.error("[ownership] Confirmation failed:", e);
+    showToast("Erreur lors de la vérification. Réessayez.", "error");
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+// L7: Cancel — back to step 1
+window.cancelOwnershipVerification = () => {
+  _ownershipCode = null;
+  _ownershipPublicId = null;
+  _ownershipUsername = null;
+  document.getElementById('profile-setup-step1').style.display = 'block';
+  document.getElementById('profile-setup-step2').style.display = 'none';
+};
+
+// L7: Final save (called after ownership verification succeeds)
+async function saveUserProfile(username, publicId) {
+  try {
+    const existing = (await getDoc(doc(db, "users", currentUser.uid))).data() || {};
     await setDoc(doc(db, "users", currentUser.uid), {
       username,
       publicId,
       email: currentUser.email,
+      verified: true, // L7: mark as ownership-verified
+      verifiedAt: new Date().toISOString(),
       createdAt: existing.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       openFrontSyncPending: true,
@@ -291,27 +391,45 @@ window.saveUserProfile = async () => {
 
     currentUser.name = username;
     currentUser.publicId = publicId;
-    
+
     await fetchPlayerClientIds(publicId, []);
-    
+
     document.getElementById('profile-modal').classList.remove('active');
+    // Reset to step 1 for next time
+    window.cancelOwnershipVerification();
     updateAuthUI(currentUser);
     processData();
     renderAll();
-    showToast("Profil enregistré et fusionné avec succès !", "success");
+    showToast("Profil vérifié et enregistré avec succès !", "success");
   } catch (error) {
     console.error("Erreur sauvegarde profil:", error);
     showToast("Erreur lors de la sauvegarde du profil.", "error");
   }
-};
+}
 
 function toggleAuthModal() {
   const modal = document.getElementById('auth-modal');
   if (modal) modal.classList.toggle('active');
 }
 
+// L11: Track in-progress login to prevent double-clicks
+let _loginInProgress = false;
+
 async function handleLogin(provider) {
+  if (_loginInProgress) return; // L11: prevent multiple concurrent logins
+  _loginInProgress = true;
   console.log(`Tentative de connexion avec ${provider}...`);
+
+  // L11: Disable auth buttons + show loading state
+  const authBtns = document.querySelectorAll('.auth-btn');
+  authBtns.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.pointerEvents = 'none';
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:#666;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle"></span> Connexion...';
+  });
+
   try {
     let user;
     if (provider === 'google') {
@@ -319,13 +437,26 @@ async function handleLogin(provider) {
     } else if (provider === 'discord') {
       user = await window.loginWithDiscord();
     }
-    
+
     // Note: L'UI sera mise à jour automatiquement par onAuthStateChanged
     if (user) {
       toggleAuthModal();
     }
   } catch (error) {
+    // L2: Error is already shown as a toast by auth.js (loginWithGoogle/Discord throw after showing toast)
     console.error("Erreur d'authentification:", error);
+  } finally {
+    _loginInProgress = false;
+    // L11: Re-enable auth buttons + restore original content
+    authBtns.forEach(btn => {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+      if (btn.dataset.originalHtml) {
+        btn.innerHTML = btn.dataset.originalHtml;
+        delete btn.dataset.originalHtml;
+      }
+    });
   }
 }
 
@@ -1437,26 +1568,12 @@ loadData().then(()=>{
   }
 });
 
-async function mockLogin(name, publicId) {
-  currentUser = {
-    name: name,
-    publicId: publicId,
-    avatar: null,
-    uid: "mock-uid-123"
-  };
-  await fetchPlayerClientIds(publicId, []);
-  updateAuthUI(currentUser);
-  processData();
-  renderAll();
-}
-
 // Export functions to window for HTML event handlers (module script = not global by default)
 window.requestNotifs = requestNotifs;
 window.toggleAuthModal = toggleAuthModal;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.toggleUserDropdown = toggleUserDropdown;
-window.goToProfilePage = goToProfilePage;
 window.switchMode = switchMode;
 window.switchTab = switchTab;
 window.searchPlayer = searchPlayer;
@@ -1470,23 +1587,8 @@ window.seeMore = seeMore;
 window.searchCompare = searchCompare;
 window.addCompare = addCompare;
 window.setLanguage = setLanguage;
-window.selectMap = selectMap;
-window.seeMore = seeMore;
-window.shareMap = shareMap;
-window.toggleGG = toggleGG;
-window.showPlayer = showPlayer;
-window.addCompare = addCompare;
-window.searchCompare = searchCompare;
-window.searchPlayer = searchPlayer;
-window.filterMaps = filterMaps;
-window.switchTab = switchTab;
-window.switchMode = switchMode;
-window.closeModal = closeModal;
 window.renderAll = renderAll;
-window.toggleUserDropdown = toggleUserDropdown;
 window.closeUserDropdown = closeUserDropdown;
-window.goToProfilePage = goToProfilePage;
-window.mockLogin = mockLogin;
 
 
 // ====== RANKED LEADERBOARD ======

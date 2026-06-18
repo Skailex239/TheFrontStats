@@ -989,14 +989,77 @@ async function saveProfileToFirestore(username, publicIdNew) {
   return true;
 }
 
-window.saveInitialProfile = async () => {
+// L7+L8: Ownership verification for profile.html setup form
+let _pfOwnershipCode = null;
+let _pfOwnershipPublicId = null;
+let _pfOwnershipUsername = null;
+
+window.startOwnershipVerificationProfile = async () => {
   const username = document.getElementById("setup-username")?.value.trim();
   const publicId = document.getElementById("setup-public-id")?.value.trim();
-  if (username && publicId && await saveProfileToFirestore(username, publicId)) {
-    showProfileView("profile-main");
-    renderProfileCard();
-    await refreshProfile();
+
+  // L8: validation
+  if (!username || !publicId) { showToast("Veuillez remplir tous les champs.", "warning"); return; }
+  if (username.length < 2 || username.length > 30) { showToast("Le pseudo doit faire entre 2 et 30 caractères.", "warning"); return; }
+  if (!/^[A-Za-z0-9]{8}$/.test(publicId)) { showToast("Le Public ID doit faire exactement 8 caractères alphanumériques.", "warning"); return; }
+  if (/[^a-zA-Z0-9_\- ]/.test(username)) { showToast("Le pseudo contient des caractères invalides.", "warning"); return; }
+
+  // L8: Verify publicId exists via API
+  showToast("Vérification du Public ID...", "info", 3000);
+  try {
+    const playerData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
+    if (!playerData || !playerData.games) { showToast("Public ID introuvable sur OpenFront.", "error"); return; }
+  } catch (e) { showToast("API indisponible. Réessayez plus tard.", "error"); return; }
+
+  // L7: Generate challenge code
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  _pfOwnershipCode = "TFS-";
+  for (let i = 0; i < 4; i++) _pfOwnershipCode += chars[Math.floor(Math.random() * chars.length)];
+  _pfOwnershipPublicId = publicId;
+  _pfOwnershipUsername = username;
+
+  document.getElementById("profile-setup-step1").style.display = "none";
+  document.getElementById("profile-setup-step2").style.display = "block";
+  document.getElementById("ownership-code-pf").textContent = _pfOwnershipCode;
+  document.getElementById("ownership-example-pf").textContent = _pfOwnershipCode + " " + username;
+  showToast("Code généré. Suivez les instructions.", "info");
+};
+
+window.confirmOwnershipVerificationProfile = async () => {
+  if (!_pfOwnershipCode) return;
+  const btn = document.getElementById("confirm-ownership-btn-pf");
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "Vérification...";
+  try {
+    const playerData = await fetchOpenFront(`/public/player/${encodeURIComponent(_pfOwnershipPublicId)}`);
+    const games = playerData.games || [];
+    let found = games.some(g => g.username && g.username.includes(_pfOwnershipCode));
+    if (!found && playerData.user?.username?.includes(_pfOwnershipCode)) found = true;
+    if (!found) {
+      showToast("Code non trouvé dans vos parties récentes.", "error", 6000);
+      btn.disabled = false; btn.textContent = orig;
+      return;
+    }
+    // L7: verified — save profile
+    if (await saveProfileToFirestore(_pfOwnershipUsername, _pfOwnershipPublicId)) {
+      await setDoc(doc(db, "users", currentUser.uid), { verified: true, verifiedAt: new Date().toISOString() }, { merge: true });
+      _pfOwnershipCode = null; _pfOwnershipPublicId = null; _pfOwnershipUsername = null;
+      showProfileView("profile-main");
+      renderProfileCard();
+      await refreshProfile();
+      showToast("Profil vérifié et enregistré !", "success");
+    }
+  } catch (e) {
+    console.error("[ownership-pf] Confirmation failed:", e);
+    showToast("Erreur lors de la vérification.", "error");
+    btn.disabled = false; btn.textContent = orig;
   }
+};
+
+window.cancelOwnershipVerificationProfile = () => {
+  _pfOwnershipCode = null; _pfOwnershipPublicId = null; _pfOwnershipUsername = null;
+  document.getElementById("profile-setup-step1").style.display = "block";
+  document.getElementById("profile-setup-step2").style.display = "none";
 };
 
 window.saveProfileEdits = async () => {
@@ -1020,8 +1083,41 @@ window.toggleEditPanel = () => {
 };
 
 window.toggleAuthModal = () => document.getElementById("auth-modal")?.classList.toggle("active");
-window.handleLogin = async (p) => { try { if (p === "google") await window.loginWithGoogle(); else await window.loginWithDiscord(); toggleAuthModal(); } catch (e) {} };
-window.handleLogout = () => { if (confirm("Déconnexion ?")) { window.logout(); window.location.href = "index.html"; } };
+
+// L3: handleLogin harmonized with app.js version (feedback + error handling)
+// L11: Disable buttons + spinner during login
+let _profileLoginInProgress = false;
+window.handleLogin = async (p) => {
+  if (_profileLoginInProgress) return;
+  _profileLoginInProgress = true;
+  const authBtns = document.querySelectorAll('.auth-btn');
+  authBtns.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.pointerEvents = 'none';
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:#666;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle"></span> Connexion...';
+  });
+  try {
+    let user;
+    if (p === "google") user = await window.loginWithGoogle();
+    else user = await window.loginWithDiscord();
+    if (user) window.toggleAuthModal();
+  } catch (e) {
+    // L2: error already shown as toast by auth.js
+    console.error("Erreur d'authentification:", e);
+  } finally {
+    _profileLoginInProgress = false;
+    authBtns.forEach(btn => {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+      if (btn.dataset.originalHtml) { btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
+    });
+  }
+};
+// L12: logout stays on current page if already there, only redirect from profile.html
+window.handleLogout = () => { if (confirm("Se déconnecter ?")) { window.logout(); } };
 window.toggleUserDropdown = (e) => { if (e) e.stopPropagation(); document.getElementById("user-container")?.classList.toggle("open"); };
 
 /* ── Public viewer ── */
@@ -1140,6 +1236,21 @@ async function showPublicProfile(targetName, publicId = null) {
   const p = new URLSearchParams(window.location.search);
   if (p.get("player")) showPublicProfile(p.get("player"), p.get("publicId"));
 })();
+
+// L6: Fallback timeout — if onAuthStateChanged never fires (Firebase blocked/slow),
+// show profile-gate (or public viewer if ?player=) instead of staying on "loading" forever
+setTimeout(() => {
+  const loading = document.getElementById("profile-loading");
+  if (loading && getComputedStyle(loading).display !== "none") {
+    console.warn("[profile] Auth state timeout — Firebase may be blocked. Showing gate.");
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("player")) {
+      showPublicProfile(p.get("player"), p.get("publicId"));
+    } else {
+      showProfileView("profile-gate");
+    }
+  }
+}, 6000);
 
 onAuthStateChanged(auth, async (user) => {
   if (profileUnsub) { profileUnsub(); profileUnsub = null; }

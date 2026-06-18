@@ -208,16 +208,36 @@
 
     <div id="profile-setup" class="feed-card" style="display:none;padding:28px;max-width:480px;margin:0 auto">
       <h2 style="margin-bottom:8px">Finaliser votre profil</h2>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:20px">Le Public ID ne pourra plus être modifié après enregistrement.</p>
-      <div class="form-group" style="margin-bottom:12px">
-        <label for="setup-username">Nom d'utilisateur</label>
-        <input type="text" id="setup-username" class="search-input" style="width:100%;box-sizing:border-box">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:20px">Liez votre compte OpenFront pour fusionner vos stats.</p>
+      <!-- Step 1 -->
+      <div id="profile-setup-step1">
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="setup-username">Nom d'utilisateur OpenFront</label>
+          <input type="text" id="setup-username" class="search-input" style="width:100%;box-sizing:border-box">
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="setup-public-id">Public ID OpenFront (8 caractères)</label>
+          <input type="text" id="setup-public-id" class="search-input" style="width:100%;box-sizing:border-box" placeholder="Ex: HabCsQYR" maxlength="8">
+        </div>
+        <button class="profile-edit-btn" onclick="startOwnershipVerificationProfile()">Vérifier mon compte</button>
       </div>
-      <div class="form-group" style="margin-bottom:16px">
-        <label for="setup-public-id">Public ID OpenFront</label>
-        <input type="text" id="setup-public-id" class="search-input" style="width:100%;box-sizing:border-box" placeholder="Ex: HabCsQYR">
+      <!-- Step 2: ownership challenge -->
+      <div id="profile-setup-step2" style="display:none">
+        <div style="background:var(--orange-pale);border:1px solid var(--orange);border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:600;color:var(--orange);margin-bottom:6px">🔑 Code de vérification : <span id="ownership-code-pf" style="font-family:var(--mono);font-size:16px"></span></div>
+          <div style="font-size:13px;color:var(--text)">
+            Pour prouver que vous êtes bien ce joueur :
+          </div>
+          <ol style="font-size:13px;color:var(--text);padding-left:20px;margin:8px 0">
+            <li>Modifiez votre pseudo OpenFront dans les paramètres du jeu</li>
+            <li>Ajoutez le code ci-dessus à votre pseudo (ex: <strong id="ownership-example-pf"></strong>)</li>
+            <li>Jouez au moins une partie</li>
+            <li>Cliquez sur "Confirmer" ci-dessous</li>
+          </ol>
+        </div>
+        <button class="profile-edit-btn" onclick="confirmOwnershipVerificationProfile()" id="confirm-ownership-btn-pf">Confirmer</button>
+        <button class="profile-edit-btn" onclick="cancelOwnershipVerificationProfile()" style="background:transparent;color:var(--muted);margin-top:8px">Retour</button>
       </div>
-      <button class="profile-edit-btn" onclick="saveInitialProfile()">Enregistrer</button>
     </div>
 
     <div id="profile-main" style="display:none">
@@ -425,6 +445,26 @@
 })();
 </script>
 <script src="profile.js" type="module"></script>
+<script>
+/* L6: Fallback timeout (inline, independent of profile.js module loading).
+   If profile.js fails to load (e.g. Firebase CDN blocked) or onAuthStateChanged
+   never fires, show profile-gate or public viewer instead of "loading" forever. */
+setTimeout(function() {
+  var loading = document.getElementById('profile-loading');
+  if (loading && getComputedStyle(loading).display !== 'none') {
+    console.warn('[profile] Auth state timeout (inline) — showing gate.');
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('player')) {
+      // Public profile viewer will be handled by profile.js if it loads later
+      var gate = document.getElementById('profile-gate');
+      if (gate) { loading.style.display = 'none'; gate.style.display = 'block'; }
+    } else {
+      var gate = document.getElementById('profile-gate');
+      if (gate) { loading.style.display = 'none'; gate.style.display = 'block'; }
+    }
+  }
+}, 6000);
+</script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e => console.warn('[SW] Registration failed:', e));

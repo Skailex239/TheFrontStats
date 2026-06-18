@@ -416,19 +416,13 @@ function toggleAuthModal() {
 let _loginInProgress = false;
 
 async function handleLogin(provider) {
-  if (_loginInProgress) return; // L11: prevent multiple concurrent logins
+  if (_loginInProgress) return; // prevent multiple concurrent logins
   _loginInProgress = true;
   console.log(`Tentative de connexion avec ${provider}...`);
 
-  // L11: Disable auth buttons + show loading state
+  // Simple disable (no innerHTML swap — keeps button content stable)
   const authBtns = document.querySelectorAll('.auth-btn');
-  authBtns.forEach(btn => {
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
-    btn.style.pointerEvents = 'none';
-    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:#666;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle"></span> Connexion...';
-  });
+  authBtns.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.6'; });
 
   try {
     let user;
@@ -438,25 +432,16 @@ async function handleLogin(provider) {
       user = await window.loginWithDiscord();
     }
 
-    // Note: L'UI sera mise à jour automatiquement par onAuthStateChanged
+    // L'UI sera mise à jour automatiquement par onAuthStateChanged
     if (user) {
       toggleAuthModal();
     }
   } catch (error) {
-    // L2: Error is already shown as a toast by auth.js (loginWithGoogle/Discord throw after showing toast)
+    // Error already shown as toast by auth.js
     console.error("Erreur d'authentification:", error);
   } finally {
     _loginInProgress = false;
-    // L11: Re-enable auth buttons + restore original content
-    authBtns.forEach(btn => {
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.style.pointerEvents = '';
-      if (btn.dataset.originalHtml) {
-        btn.innerHTML = btn.dataset.originalHtml;
-        delete btn.dataset.originalHtml;
-      }
-    });
+    authBtns.forEach(btn => { btn.disabled = false; btn.style.opacity = ''; });
   }
 }
 

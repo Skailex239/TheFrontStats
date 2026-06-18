@@ -1084,39 +1084,26 @@ window.toggleEditPanel = () => {
 
 window.toggleAuthModal = () => document.getElementById("auth-modal")?.classList.toggle("active");
 
-// L3: handleLogin harmonized with app.js version (feedback + error handling)
-// L11: Disable buttons + spinner during login
+// L3: handleLogin harmonized with app.js version (simple disable, no innerHTML swap)
 let _profileLoginInProgress = false;
 window.handleLogin = async (p) => {
   if (_profileLoginInProgress) return;
   _profileLoginInProgress = true;
   const authBtns = document.querySelectorAll('.auth-btn');
-  authBtns.forEach(btn => {
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
-    btn.style.pointerEvents = 'none';
-    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:#666;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle"></span> Connexion...';
-  });
+  authBtns.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.6'; });
   try {
     let user;
     if (p === "google") user = await window.loginWithGoogle();
     else user = await window.loginWithDiscord();
     if (user) window.toggleAuthModal();
   } catch (e) {
-    // L2: error already shown as toast by auth.js
     console.error("Erreur d'authentification:", e);
   } finally {
     _profileLoginInProgress = false;
-    authBtns.forEach(btn => {
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.style.pointerEvents = '';
-      if (btn.dataset.originalHtml) { btn.innerHTML = btn.dataset.originalHtml; delete btn.dataset.originalHtml; }
-    });
+    authBtns.forEach(btn => { btn.disabled = false; btn.style.opacity = ''; });
   }
 };
-// L12: logout stays on current page if already there, only redirect from profile.html
+// L12: logout no longer force-redirects
 window.handleLogout = () => { if (confirm("Se déconnecter ?")) { window.logout(); } };
 window.toggleUserDropdown = (e) => { if (e) e.stopPropagation(); document.getElementById("user-container")?.classList.toggle("open"); };
 

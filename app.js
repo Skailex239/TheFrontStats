@@ -1142,21 +1142,18 @@ async function toggleGG(runId, event) {
   // Mise à jour de la base de données Firestore
   try {
     if (hasLiked) {
-      // FIX: increment(-1) ne fonctionne pas avec setDoc+merge — Firestore écrit -1 au lieu de décrémenter
-      // On utilise deleteField pour supprimer l'utilisateur, puis recalculer le count
+      // Atomic unlike: decrement count + remove user in a single updateDoc call
+      // updateDoc supports increment() and deleteField() atomically, no race condition
       const { deleteField } = await import('./auth.js');
-      await setDoc(likeRef, {
+      await updateDoc(likeRef, {
+        count: increment(-1),
         ['users.' + userId]: deleteField()
-      }, { merge: true });
-      // Re-lire le doc pour recalculer le count après suppression
-      const updatedDoc = await getDoc(likeRef);
-      if (updatedDoc.exists()) {
-        const updatedData = updatedDoc.data();
-        const remainingUsers = updatedData.users || {};
-        const newCount = Object.keys(remainingUsers).length;
-        await setDoc(likeRef, { count: newCount }, { merge: true });
-        globalLikes[runId] = { ...updatedData, count: newCount, users: remainingUsers };
-      }
+      });
+      // Update local cache
+      const updatedData = { ...(globalLikes[runId] || { count: 0, users: {} }) };
+      delete updatedData.users[userId];
+      updatedData.count = Math.max(0, (updatedData.count || 1) - 1);
+      globalLikes[runId] = updatedData;
     } else {
       await setDoc(likeRef, {
         count: increment(1),

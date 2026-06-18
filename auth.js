@@ -21,6 +21,7 @@ import {
   updateDoc,
   increment,
   deleteField,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { firebaseConfig } from "./shared/firebase-config.js"; 
 
@@ -34,7 +35,7 @@ const googleProvider = new GoogleAuthProvider();
 const discordProvider = new OAuthProvider('oidc.discord');
 
 export {
-  auth, db, doc, getDoc, getDocs, setDoc, updateDoc, collection, query, where, onSnapshot, increment, deleteField,
+  auth, db, doc, getDoc, getDocs, setDoc, updateDoc, collection, query, where, onSnapshot, increment, deleteField, runTransaction,
   googleProvider, discordProvider, signInWithPopup, signOut, onAuthStateChanged,
 };
 

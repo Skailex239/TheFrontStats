@@ -14,7 +14,7 @@ SYNC_YML_B64=$(base64 -w0 sync-workflow-template.yml)
 curl -s -X PUT \
   -H "Authorization: token $TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/Skailex239/OpenRuns/contents/.github/workflows/sync.yml \
+  https://api.github.com/repos/Skailex239/TheFrontStats/contents/.github/workflows/sync.yml \
   -d "{
     \"message\": \"Restore Auto Sync workflow\",
     \"content\": \"$SYNC_YML_B64\",

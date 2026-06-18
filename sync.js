@@ -216,8 +216,17 @@ function saveSeen(seen) {
   fs.writeFileSync(SEEN_FILE, JSON.stringify([...seen]));
 }
 function loadCheckpoints() {
-  try { return JSON.parse(fs.readFileSync(CHECKPOINT_FILE, "utf8")); }
-  catch { return {}; }
+  try {
+    const cp = JSON.parse(fs.readFileSync(CHECKPOINT_FILE, "utf8"));
+    // ── Reset check: if do-reset.ps1 set {"reset":true}, clear all sync state ──
+    if (cp.reset === true) {
+      console.log("[checkpoint] ⚠️ Reset detected — clearing sync state for full re-sync.");
+      const cleared = { history_oldest_reached: String(Date.now()), history_saturated_windows: 0, last_sync_time: "0" };
+      saveCheckpoints(cleared);
+      return cleared;
+    }
+    return cp;
+  } catch { return {}; }
 }
 function saveCheckpoints(cp) {
   fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(cp, null, 2));

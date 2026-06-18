@@ -69,6 +69,10 @@ export function extractSpeedrun(raw, mode = "normal") {
   const minHumans = isCompact ? 3 : 10;
   if (humanPlayers.length < minHumans) return null;
 
+  // ── Winner check: handle undefined (incomplete games), non-array, and team/nation wins ──
+  // OpenFrontIO can archive games with winner=undefined (incomplete/timeout) — these are filtered out.
+  // Team wins (["team", name, ...]) and nation wins (["nation", name, ...]) are also filtered
+  // since winner[1] won't match any player's clientID — correct for FFA speedruns.
   const winner = detail.winner;
   if (!winner || !Array.isArray(winner) || winner.length < 2) return null;
 

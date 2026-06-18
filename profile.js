@@ -1,6 +1,6 @@
 import {
   auth, db, doc, getDoc, getDocs, setDoc, onSnapshot, onAuthStateChanged,
-  collection, query, where,
+  collection, query, where, runTransaction,
 } from "./auth.js";
 import { fetchOpenFront, parseSessionsPayload, normalizeSession } from "./openfront-client.js";
 
@@ -949,14 +949,21 @@ window.redeemCode = async () => {
     const snap = await getDocs(q);
     if (snap.empty) { msgEl.textContent = "Code invalide."; msgEl.className = "pf-reward-msg error"; return; }
     const codeDoc = snap.docs[0];
-    const codeData = codeDoc.data();
-    if (codeData.used) { msgEl.textContent = "Code déjà utilisé."; msgEl.className = "pf-reward-msg error"; return; }
-    const rewardType = codeData.type || "vip";
-    const now = new Date().toISOString();
-    await Promise.all([
-      setDoc(doc(db, "reward-codes", codeDoc.id), { used: true, redeemedBy: [currentUser.uid], lastUsedAt: now }, { merge: true }),
-      setDoc(doc(db, "public-rewards", currentUser.uid), { username: currentUser.name, ownedTypes: [...ownedTypes, rewardType], activeType: rewardType, activated: true }, { merge: true }),
-    ]);
+
+    // ── Atomic transaction: read + check used + write in one step ──
+    // Prevents race condition where two users redeem the same code simultaneously
+    const rewardType = await runTransaction(db, async (tx) => {
+      const codeSnap = await tx.get(doc(db, "reward-codes", codeDoc.id));
+      if (!codeSnap.exists()) throw new Error("Code introuvable.");
+      const codeData = codeSnap.data();
+      if (codeData.used) throw new Error("already-used");
+      const type = codeData.type || "vip";
+      const now = new Date().toISOString();
+      tx.update(doc(db, "reward-codes", codeDoc.id), { used: true, redeemedBy: [currentUser.uid], lastUsedAt: now });
+      return type;
+    });
+
+    await setDoc(doc(db, "public-rewards", currentUser.uid), { username: currentUser.name, ownedTypes: [...ownedTypes, rewardType], activeType: rewardType, activated: true }, { merge: true });
     ownedTypes.push(rewardType);
     activeType = rewardType;
     rewardActivated = true;
@@ -964,7 +971,10 @@ window.redeemCode = async () => {
     applyProfileVipStyle();
     msgEl.textContent = "Code activé ! 🎉"; msgEl.className = "pf-reward-msg success";
     input.value = "";
-  } catch (e) { msgEl.textContent = "Erreur."; msgEl.className = "pf-reward-msg error"; }
+  } catch (e) {
+    if (e.message === "already-used") { msgEl.textContent = "Code déjà utilisé."; msgEl.className = "pf-reward-msg error"; }
+    else { msgEl.textContent = "Erreur."; msgEl.className = "pf-reward-msg error"; }
+  }
   finally { redeemInProgress = false; }
 };
 
@@ -1180,8 +1190,9 @@ async function loadRankedGames(publicId, containerId) {
       const { fetchOpenFront } = await import('./openfront-client.js');
       pData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
     } catch (e) {
-      const pRes = await fetch(`https://api.openfront.io/player/${publicId}`);
-      pData = await pRes.json();
+      console.warn('[loadRankedGames] Failed to fetch player data:', e.message);
+      box.innerHTML = "<p style='padding:16px;text-align:center;color:var(--text3)'>Données indisponibles.</p>";
+      return;
     }
     const ranked = (pData.games || []).filter(g => g.rankedType === "1v1").reverse().slice(0, 5);
     if (ranked.length === 0) { box.innerHTML = "<p style='padding:16px;text-align:center;color:var(--text3)'>Aucune partie classée.</p>"; return; }

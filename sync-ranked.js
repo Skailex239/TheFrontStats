@@ -38,6 +38,20 @@ async function fetchLeaderboard() {
           console.log(`[ranked-sync] Page ${page}: 404, arrêt.`);
           break;
         }
+        // C4: Graceful fallback on 401/403 (exemption token missing/invalid)
+        if (res.status === 401 || res.status === 403) {
+          console.warn(`[ranked-sync] ⚠️ HTTP ${res.status} — token d'exemption manquant ou invalide.`);
+          console.warn(`[ranked-sync] Conservation du cache précédent (ranked.json non écrasé).`);
+          // Try to load previous cached data
+          try {
+            const cached = JSON.parse(fs.readFileSync("ranked.json", "utf8"));
+            if (cached && cached["1v1"] && cached["1v1"].length > 0) {
+              console.log(`[ranked-sync] Cache précédent conservé: ${cached["1v1"].length} joueurs.`);
+              return cached["1v1"];
+            }
+          } catch (e2) { /* no cache available */ }
+          return allPlayers; // return whatever we have so far
+        }
         console.warn(`[ranked-sync] HTTP ${res.status} à la page ${page}`);
         break;
       }

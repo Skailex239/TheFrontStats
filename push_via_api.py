@@ -77,8 +77,8 @@ def main():
             print(f"  SKIP (missing): {fpath}")
             continue
 
-        # Normalize path: strip any leading ./ or absolute prefix to get repo-relative path
-        rel_path = os.path.basename(fpath)
+        # Normalize path: use path relative to repo root (not basename, which strips directories)
+        rel_path = os.path.relpath(fpath, os.getcwd()).replace("\\", "/")
 
         fsize = os.path.getsize(fpath)
         print(f"  Processing: {rel_path} ({fsize} bytes raw)...")

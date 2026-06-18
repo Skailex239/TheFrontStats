@@ -14,6 +14,17 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, collection, getDocs } from "firebase/firestore";
 import { firebaseConfig } from "./shared/firebase-config.js";
 
+// ── Admin guard ──
+// This script writes directly to Firestore (reward-codes collection).
+// It MUST only be run by an authorized admin. Set TFS_ADMIN_TOKEN in your env.
+const ADMIN_TOKEN = process.env.TFS_ADMIN_TOKEN;
+if (!ADMIN_TOKEN || ADMIN_TOKEN.length < 8) {
+  console.error("❌ ERREUR: TFS_ADMIN_TOKEN manquant ou trop court.");
+  console.error("   Définissez TFS_ADMIN_TOKEN dans votre environnement pour exécuter ce script.");
+  console.error("   Usage: TFS_ADMIN_TOKEN=xxxxx node generate-code.js [count] [type]");
+  process.exit(1);
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 

@@ -109,16 +109,19 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // Fresh-login redirect: if the user just logged in (sessionStorage flag set
-    // by handleLogin or auth.js redirect-result handler) AND has a verified
-    // profile with publicId, send them straight to profile.html.
+    // by handleLogin BEFORE the login call) AND has a profile with publicId,
+    // send them straight to profile.html to see their stats.
     let justLoggedIn = false;
     try { justLoggedIn = sessionStorage.getItem("tfs_just_logged_in") === "1"; } catch {}
     if (justLoggedIn) {
       try { sessionStorage.removeItem("tfs_just_logged_in"); } catch {}
       const data = userDoc.exists() ? userDoc.data() : null;
       if (data && data.publicId) {
-        // Redirect to profile page — stats will be displayed there
-        window.location.href = "profile.html";
+        console.log("[auth] Login réussi — redirection vers profile.html");
+        if (typeof showToast === 'function') {
+          showToast("Bienvenue " + (data.username || '') + " ! Redirection...", "success", 1500);
+        }
+        setTimeout(() => { window.location.href = "profile.html"; }, 800);
         return;
       }
       // No profile yet → stay on index.html and show setup modal below
@@ -449,6 +452,10 @@ async function handleLogin(provider) {
   const authBtns = document.querySelectorAll('.auth-btn');
   authBtns.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.6'; });
 
+  // Set flag BEFORE login attempt — onAuthStateChanged may fire before
+  // signInWithPopup resolves (race condition), so the flag must be ready
+  try { sessionStorage.setItem("tfs_just_logged_in", "1"); } catch {}
+
   try {
     let user;
     if (provider === 'google') {
@@ -457,15 +464,13 @@ async function handleLogin(provider) {
       user = await window.loginWithDiscord();
     }
 
-    // Mark fresh login so onAuthStateChanged can redirect to profile.html
-    // (only if the user has a verified profile with publicId)
     if (user) {
-      try { sessionStorage.setItem("tfs_just_logged_in", "1"); } catch {}
       toggleAuthModal();
     }
     // L'UI sera mise à jour automatiquement par onAuthStateChanged
   } catch (error) {
-    // Error already shown as toast by auth.js
+    // Login failed — clear the flag so it doesn't trigger a false redirect
+    try { sessionStorage.removeItem("tfs_just_logged_in"); } catch {}
     console.error("Erreur d'authentification:", error);
   } finally {
     _loginInProgress = false;

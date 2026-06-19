@@ -150,11 +150,8 @@ function renderHero(user, profile) {
 
   const avatarEl = document.getElementById("profile-avatar-large");
   if (avatarEl) {
-    if (user.photoURL) {
-      avatarEl.innerHTML = `<img src="${esc(user.photoURL)}" alt="${esc(profile.username || 'avatar')}" style="width:100%;height:100%;object-fit:cover">`;
-    } else {
-      avatarEl.textContent = (profile.username || "U").substring(0, 2).toUpperCase();
-    }
+    // Use PDP.png as the avatar image (instead of default letter)
+    avatarEl.innerHTML = `<img src="PDP.png" alt="${esc(profile.username || 'avatar')}" style="width:100%;height:100%;object-fit:cover">`;
   }
 }
 

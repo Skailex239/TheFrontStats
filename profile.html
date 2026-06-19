@@ -181,6 +181,12 @@
       flex: 1;
       min-width: 0;
     }
+    .pf-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
     .pf-player-name {
       margin: 0 0 4px 0;
       font-size: 24px;
@@ -465,17 +471,19 @@
 
     <!-- ─── View: Main (logged in with publicId — stats display) ─── -->
     <div id="profile-main" class="pf-view">
-      <!-- Profile header (avatar + name + stats list) -->
+      <!-- Profile header (name + stats list on left, avatar on right) -->
       <div class="pf-header-card">
         <div class="pf-header-top">
-          <div class="pf-avatar-frame" id="profile-avatar-large">—</div>
           <div class="pf-header-info">
             <h1 class="pf-player-name" id="profile-title-name">—</h1>
             <span class="pf-publicid" id="profile-public-badge">Public ID: —</span>
           </div>
-          <button class="pf-logout-btn" onclick="handleLogout()" title="Se déconnecter">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
+          <div class="pf-header-right">
+            <div class="pf-avatar-frame" id="profile-avatar-large">—</div>
+            <button class="pf-logout-btn" onclick="handleLogout()" title="Se déconnecter">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
         </div>
         <ul class="pf-stats-list">
           <li id="stat-week-rank">This week rank: —</li>

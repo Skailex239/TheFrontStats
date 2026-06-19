@@ -142,6 +142,175 @@
       .pf-game-row { grid-template-columns: 1fr; gap: 6px; }
       .pf-game-date, .pf-game-result { justify-self: start; }
     }
+
+    /* ═══ NEW PROFILE DESIGN (Jimmy-style) ═══ */
+    .pf-header-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .pf-header-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .pf-avatar-frame {
+      width: 80px;
+      height: 80px;
+      border: 2px solid #ff6b6b;
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .pf-avatar-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .pf-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .pf-player-name {
+      margin: 0 0 4px 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .pf-publicid {
+      display: inline-block;
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--mono, monospace);
+    }
+    .pf-logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .pf-logout-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+    .pf-stats-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .pf-stats-list li {
+      position: relative;
+      padding-left: 14px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .pf-stats-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--text);
+    }
+    .pf-stats-list li:last-child { margin-bottom: 0; }
+
+    .pf-games-section { margin-top: 8px; }
+    .pf-games-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 16px 0;
+    }
+    .pf-games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .pf-game-card {
+      border: 2px solid #ff6b6b;
+      border-radius: 6px;
+      padding: 12px;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .pf-game-card.win { border-color: #4caf50; }
+    .pf-game-id {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .pf-game-result {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      width: fit-content;
+      margin-bottom: 6px;
+    }
+    .pf-game-card.loss .pf-game-result { background: #ff6b6b; }
+    .pf-game-card.win .pf-game-result { background: #4caf50; }
+    .pf-game-meta {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .pf-game-pts {
+      font-size: 13px;
+      font-weight: 700;
+      color: #4caf50;
+      margin-top: 2px;
+    }
+    .pf-game-replay {
+      color: #2196f3;
+      text-decoration: underline;
+      font-size: 13px;
+      margin-top: 6px;
+      cursor: pointer;
+    }
+    .pf-game-replay:hover { color: #1976d2; }
+    .pf-show-all {
+      width: 100%;
+      padding: 10px 16px;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 4px;
+      color: #666;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .pf-show-all:hover { background: #d0d0d0; }
+
+    @media (max-width: 600px) {
+      .pf-games-grid { grid-template-columns: 1fr; }
+      .pf-header-top { flex-wrap: wrap; }
+      .pf-avatar-frame { width: 64px; height: 64px; }
+      .pf-player-name { font-size: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -296,43 +465,36 @@
 
     <!-- ─── View: Main (logged in with publicId — stats display) ─── -->
     <div id="profile-main" class="pf-view">
-      <!-- Hero -->
-      <div class="pf-hero">
-        <div class="pf-avatar" id="profile-avatar-large">—</div>
-        <div class="pf-hero-info">
-          <h1 class="pf-name" id="profile-title-name">—</h1>
-          <div class="pf-hero-badges">
-            <span class="pf-badge" id="profile-public-badge">Public ID: —</span>
-            <span class="pf-clan-badge" id="profile-clan-badge" style="display:none"></span>
-            <span class="pf-badge" id="profile-elo-badge" style="display:none"></span>
+      <!-- Profile header (avatar + name + stats list) -->
+      <div class="pf-header-card">
+        <div class="pf-header-top">
+          <div class="pf-avatar-frame" id="profile-avatar-large">—</div>
+          <div class="pf-header-info">
+            <h1 class="pf-player-name" id="profile-title-name">—</h1>
+            <span class="pf-publicid" id="profile-public-badge">Public ID: —</span>
           </div>
+          <button class="pf-logout-btn" onclick="handleLogout()" title="Se déconnecter">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
         </div>
-        <button class="pf-edit-btn" onclick="handleLogout()" title="Se déconnecter">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
+        <ul class="pf-stats-list">
+          <li id="stat-week-rank">This week rank: —</li>
+          <li id="stat-week-score">This week score: —</li>
+          <li id="stat-alltime">All-time score: —</li>
+          <li id="stat-elo-line" style="display:none">ELO: — (Peak: —)</li>
+        </ul>
       </div>
 
       <!-- API error banner -->
       <div id="profile-api-error" class="pf-error-banner" style="display:none"></div>
 
-      <!-- Stats grid -->
-      <div class="pf-stat-grid" id="profile-stat-grid">
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-wins">—</div><div class="pf-stat-label">Victoires</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-total">—</div><div class="pf-stat-label">Parties jouées</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-winrate">—</div><div class="pf-stat-label">Winrate</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-maps">—</div><div class="pf-stat-label">Cartes jouées</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-favmap">—</div><div class="pf-stat-label">Carte préférée</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-last">—</div><div class="pf-stat-label">Dernière partie</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-elo">—</div><div class="pf-stat-label">ELO (1v1)</div></div>
-        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-peak">—</div><div class="pf-stat-label">ELO Peak</div></div>
-      </div>
-
-      <!-- Recent games -->
-      <div class="pf-section-card">
-        <div class="pf-section-title">🕒 Dernières parties</div>
-        <div id="profile-recent-games">
+      <!-- Last Games -->
+      <div class="pf-games-section">
+        <h2 class="pf-games-title">Last Games</h2>
+        <div id="profile-recent-games" class="pf-games-grid">
           <div class="pf-empty">Chargement…</div>
         </div>
+        <button class="pf-show-all" id="show-all-games-btn" style="display:none">Show all games</button>
       </div>
     </div>
 

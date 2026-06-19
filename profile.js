@@ -146,12 +146,12 @@ function renderHero(user, profile) {
   if (nameEl) nameEl.textContent = profile.username || user.displayName || "Joueur";
 
   const badgeEl = document.getElementById("profile-public-badge");
-  if (badgeEl) badgeEl.textContent = "Public ID : " + (profile.publicId || "—");
+  if (badgeEl) badgeEl.textContent = "Public ID: " + (profile.publicId || "—");
 
   const avatarEl = document.getElementById("profile-avatar-large");
   if (avatarEl) {
     if (user.photoURL) {
-      avatarEl.innerHTML = `<img src="${esc(user.photoURL)}" alt="${esc(profile.username)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      avatarEl.innerHTML = `<img src="${esc(user.photoURL)}" alt="${esc(profile.username || 'avatar')}" style="width:100%;height:100%;object-fit:cover">`;
     } else {
       avatarEl.textContent = (profile.username || "U").substring(0, 2).toUpperCase();
     }
@@ -161,11 +161,12 @@ function renderHero(user, profile) {
 /* ── Main view: load stats ── */
 
 async function loadStats(publicId) {
-  // Reset stats UI to loading
-  ["stat-wins","stat-total","stat-winrate","stat-maps","stat-favmap","stat-last","stat-elo","stat-peak"]
-    .forEach(id => setStat(id, "…", true));
+  // Reset stats list to loading
+  setText("stat-week-rank", "This week rank: …");
+  setText("stat-week-score", "This week score: …");
+  setText("stat-alltime", "All-time score: …");
   const recentEl = document.getElementById("profile-recent-games");
-  if (recentEl) recentEl.innerHTML = `<div class="pf-empty">Chargement des parties…</div>`;
+  if (recentEl) recentEl.innerHTML = `<div class="pf-empty">Chargement…</div>`;
   hideError();
 
   // Kick off ELO lookup (ranked.json) in parallel
@@ -176,10 +177,10 @@ async function loadStats(publicId) {
     playerData = await fetchOpenFront(`/public/player/${encodeURIComponent(publicId)}`);
   } catch (e) {
     console.error("[profile] OpenFront API error:", e);
-    showError(`Impossible de charger les statistiques depuis l'API OpenFront. Vérifiez votre connexion et réessayez.`);
-    setStat("stat-wins", "—", true); setStat("stat-total", "—", true);
-    setStat("stat-winrate", "—", true); setStat("stat-maps", "—", true);
-    setStat("stat-favmap", "—", true); setStat("stat-last", "—", true);
+    showError(`Impossible de charger les statistiques depuis l'API OpenFront.`);
+    setText("stat-week-rank", "This week rank: —");
+    setText("stat-week-score", "This week score: —");
+    setText("stat-alltime", "All-time score: —");
     return;
   }
 
@@ -191,31 +192,78 @@ async function loadStats(publicId) {
   const games = Array.isArray(playerData.games) ? playerData.games : [];
   const stats = computeStats(games, playerData.stats || {});
 
-  // Render stat cards
-  setStat("stat-wins", stats.wins.toLocaleString());
-  setStat("stat-total", stats.total.toLocaleString());
-  setStat("stat-winrate", stats.total > 0 ? ((stats.wins / stats.total) * 100).toFixed(1) + "%" : "—");
-  setStat("stat-maps", stats.uniqueMaps);
-  setStat("stat-favmap", stats.favMap || "—");
-  setStat("stat-last", formatDateShort(stats.lastGame));
+  // Compute week stats (games in last 7 days)
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const weekGames = games.filter(g => {
+    const t = new Date(g.start || 0).getTime();
+    return !isNaN(t) && t >= weekAgo && t <= now;
+  });
+  const weekWins = weekGames.length; // approximate: count week games as "score"
+  const weekRank = "—"; // not available without global calc
+
+  // All-time score: wins * 1 + games played (simple heuristic)
+  const allTimeScore = stats.wins * 4 + (stats.total - stats.wins);
+
+  // Breakdown by mode (from stats tree)
+  const breakdown = computeModeBreakdown(playerData.stats || {});
+  const detail = [];
+  if (breakdown.FFA) detail.push("FFA: " + breakdown.FFA);
+  if (breakdown.Team) detail.push("Team: " + breakdown.Team);
+  if (breakdown.Duos) detail.push("Duos: " + breakdown.Duos);
+  if (breakdown.Trios) detail.push("Trios: " + breakdown.Trios);
+  if (breakdown.Quads) detail.push("Quads: " + breakdown.Quads);
+  const detailStr = detail.length ? " (" + detail.join(", ") + ")" : "";
+
+  setText("stat-week-rank", `This week rank: #${weekRank}`);
+  setText("stat-week-score", `This week score: ${weekWins}`);
+  setText("stat-alltime", `All-time score: ${allTimeScore} (${stats.wins} wins${detailStr})`);
 
   // ELO from ranked.json
   const ranked = await eloPromise;
-  if (ranked) {
-    setStat("stat-elo", ranked.elo?.toLocaleString() ?? "—");
-    setStat("stat-peak", ranked.peakElo?.toLocaleString() ?? "—");
-    const eloBadge = document.getElementById("profile-elo-badge");
-    if (eloBadge) {
-      eloBadge.textContent = `ELO ${ranked.elo}`;
-      eloBadge.style.display = "inline-block";
+  const eloLine = document.getElementById("stat-elo-line");
+  if (eloLine) {
+    if (ranked && ranked.elo != null) {
+      eloLine.textContent = `ELO: ${ranked.elo} (Peak: ${ranked.peakElo ?? '—'})`;
+      eloLine.style.display = "list-item";
+    } else {
+      eloLine.style.display = "none";
     }
-  } else {
-    setStat("stat-elo", "—", true);
-    setStat("stat-peak", "—", true);
   }
 
   // Recent games (last 5) — fetch each game to determine win/loss
   renderRecentGames(games, publicId);
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function computeModeBreakdown(statsTree) {
+  const out = { FFA: 0, Team: 0, Duos: 0, Trios: 0, Quads: 0 };
+  if (!statsTree || typeof statsTree !== "object") return out;
+  for (const catKey of Object.keys(statsTree)) {
+    const cat = statsTree[catKey];
+    if (!cat || typeof cat !== "object") continue;
+    for (const modeKey of Object.keys(cat)) {
+      const mode = cat[modeKey];
+      if (!mode || typeof mode !== "object") continue;
+      let wins = 0;
+      for (const diffKey of Object.keys(mode)) {
+        const diff = mode[diffKey];
+        if (diff && typeof diff === "object" && diff.wins != null) {
+          wins += parseInt(diff.wins, 10) || 0;
+        }
+      }
+      if (modeKey === "Free For All") out.FFA += wins;
+      else if (modeKey === "Team") {
+        // Try to break down by playerTeams if available
+        out.Team += wins;
+      }
+    }
+  }
+  return out;
 }
 
 function computeStats(games, statsTree) {
@@ -309,23 +357,23 @@ async function renderRecentGames(games, publicId) {
     return;
   }
 
-  // Initial render with loading badges
+  // Initial render with loading result badges
   container.innerHTML = sorted.map((g, i) => `
-    <div class="pf-game-row" data-game-idx="${i}">
-      <div>
-        <div class="pf-game-map">${esc(g.map || "Carte inconnue")}</div>
-        <div class="pf-game-meta">${esc(g.mode || "—")} · ${esc(g.type || "—")}${g.difficulty ? " · " + esc(g.difficulty) : ""}</div>
-      </div>
-      <div class="pf-game-result loading" data-result>…</div>
-      <div class="pf-game-date">${formatDateTime(g.start)}</div>
+    <div class="pf-game-card loss" data-game-idx="${i}">
+      <div class="pf-game-id">${esc(g.gameId || "—")}</div>
+      <div class="pf-game-result" data-result>…</div>
+      <div class="pf-game-meta">${formatDateTime(g.start)}</div>
+      <div class="pf-game-meta">${esc(g.map || "Carte inconnue")}</div>
+      <div class="pf-game-meta">${esc(g.mode || "—")}</div>
+      <a class="pf-game-replay" href="https://openfront.io/game/${encodeURIComponent(g.gameId)}" target="_blank" rel="noopener">Watch replay</a>
     </div>
   `).join("");
 
   // Fetch each game's result in parallel
   sorted.forEach(async (g, i) => {
-    const row = container.querySelector(`[data-game-idx="${i}"]`);
-    if (!row) return;
-    const resultEl = row.querySelector("[data-result]");
+    const card = container.querySelector(`[data-game-idx="${i}"]`);
+    if (!card) return;
+    const resultEl = card.querySelector("[data-result]");
     let isWin = null;
     try {
       isWin = await checkGameWin(g.gameId, g.clientId);
@@ -334,14 +382,18 @@ async function renderRecentGames(games, publicId) {
     }
     if (resultEl) {
       if (isWin === true) {
-        resultEl.textContent = "Victoire";
-        resultEl.className = "pf-game-result win";
+        resultEl.textContent = "WIN";
+        card.classList.remove("loss");
+        card.classList.add("win");
+        // Add points badge for wins
+        const ptsEl = document.createElement("div");
+        ptsEl.className = "pf-game-pts";
+        ptsEl.textContent = "+4 pts";
+        card.insertBefore(ptsEl, card.querySelector(".pf-game-replay"));
       } else if (isWin === false) {
-        resultEl.textContent = "Défaite";
-        resultEl.className = "pf-game-result loss";
+        resultEl.textContent = "LOSS";
       } else {
         resultEl.textContent = "N/A";
-        resultEl.className = "pf-game-result loading";
       }
     }
   });

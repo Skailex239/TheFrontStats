@@ -100,8 +100,30 @@ onAuthStateChanged(auth, async (user) => {
   // L9: redirectToProfileIfRequested() is called once at module load (line ~1452), not here
   if (user) {
     // Vérifier si le profil existe déjà dans Firestore
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    
+    let userDoc;
+    try {
+      userDoc = await getDoc(doc(db, "users", user.uid));
+    } catch (e) {
+      console.warn("[auth] Firestore read failed:", e.message);
+      userDoc = { exists: () => false, data: () => null };
+    }
+
+    // Fresh-login redirect: if the user just logged in (sessionStorage flag set
+    // by handleLogin or auth.js redirect-result handler) AND has a verified
+    // profile with publicId, send them straight to profile.html.
+    let justLoggedIn = false;
+    try { justLoggedIn = sessionStorage.getItem("tfs_just_logged_in") === "1"; } catch {}
+    if (justLoggedIn) {
+      try { sessionStorage.removeItem("tfs_just_logged_in"); } catch {}
+      const data = userDoc.exists() ? userDoc.data() : null;
+      if (data && data.publicId) {
+        // Redirect to profile page — stats will be displayed there
+        window.location.href = "profile.html";
+        return;
+      }
+      // No profile yet → stay on index.html and show setup modal below
+    }
+
     if (userDoc.exists()) {
       const userData = userDoc.data();
       currentUser = {
@@ -110,10 +132,10 @@ onAuthStateChanged(auth, async (user) => {
         avatar: user.photoURL,
         uid: user.uid
       };
-      
+
       // Récupérer les Client IDs et les pseudos historiques depuis l'API OpenFront
       await fetchPlayerClientIds(userData.publicId, userData.openFrontSessions);
-      
+
       updateAuthUI(currentUser);
       processData(); // Re-traiter les données pour appliquer la fusion
       renderAll();
@@ -125,6 +147,7 @@ onAuthStateChanged(auth, async (user) => {
         avatar: user.photoURL,
         email: user.email
       };
+      updateAuthUI({ name: user.displayName || 'Joueur', avatar: user.photoURL, uid: user.uid });
       showProfileModal();
     }
   } else {
@@ -400,7 +423,9 @@ async function saveUserProfile(username, publicId) {
     updateAuthUI(currentUser);
     processData();
     renderAll();
-    showToast("Profil vérifié et enregistré avec succès !", "success");
+    showToast("Profil vérifié et enregistré avec succès ! Redirection…", "success");
+    // Redirect to profile.html so user can see their freshly-linked stats
+    setTimeout(() => { window.location.href = "profile.html"; }, 800);
   } catch (error) {
     console.error("Erreur sauvegarde profil:", error);
     showToast("Erreur lors de la sauvegarde du profil.", "error");
@@ -432,10 +457,13 @@ async function handleLogin(provider) {
       user = await window.loginWithDiscord();
     }
 
-    // L'UI sera mise à jour automatiquement par onAuthStateChanged
+    // Mark fresh login so onAuthStateChanged can redirect to profile.html
+    // (only if the user has a verified profile with publicId)
     if (user) {
+      try { sessionStorage.setItem("tfs_just_logged_in", "1"); } catch {}
       toggleAuthModal();
     }
+    // L'UI sera mise à jour automatiquement par onAuthStateChanged
   } catch (error) {
     // Error already shown as toast by auth.js
     console.error("Erreur d'authentification:", error);

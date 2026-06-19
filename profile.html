@@ -4,26 +4,145 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TheFrontStats — Mon Profil</title>
-  <meta property="og:title" content="TheFrontStats — OpenFront Leaderboard">
-  <meta property="og:description" content="Le leaderboard ultime pour OpenFront.io">
+  <meta name="description" content="Votre profil TheFrontStats — statistiques OpenFront, historique de parties et progression.">
+  <meta property="og:title" content="TheFrontStats — Mon Profil">
+  <meta property="og:description" content="Suivez votre progression et vos statistiques OpenFront.">
   <meta property="og:image" content="https://skailex239.github.io/TheFrontStats/favicon-official.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://api.openfront.io">
   <link rel="dns-prefetch" href="https://corsproxy.io">
-  <link rel="preload" href="runs_public.json.gz" as="fetch" crossorigin="anonymous">
-  <link rel="preload" href="runs_compact_public.json.gz" as="fetch" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="favicon-official.png">
   <link rel="icon" type="image/png" sizes="128x128" href="favicon-official.png">
   <link rel="apple-touch-icon" sizes="180x180" href="favicon-official.png">
   <link rel="stylesheet" href="styles.css?v=19">
   <link rel="stylesheet" href="auth.css?v=14">
-  <link rel="stylesheet" href="profile.css?v=13">
+  <link rel="stylesheet" href="profile.css?v=14">
   <link rel="stylesheet" href="animations.css" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="animations.css"></noscript>
   <link rel="stylesheet" href="toast.css">
+  <style>
+    /* Inline styles for the rewritten profile page — kept minimal and orange-themed */
+    .pf-view { display:none; }
+    .pf-view.is-active { display:block; }
+
+    .pf-gate-card {
+      max-width: 460px; margin: 60px auto; padding: 40px 28px;
+      text-align: center; border-radius: 16px;
+      background: var(--card); border: 1px solid var(--border);
+      box-shadow: 0 6px 24px rgba(0,0,0,.04);
+    }
+    .pf-gate-card h2 { font-size: 22px; margin: 12px 0 6px; }
+    .pf-gate-card p { color: var(--text2); font-size: 14px; margin-bottom: 22px; }
+    .pf-gate-icon {
+      width: 56px; height: 56px; margin: 0 auto 8px;
+      border-radius: 50%;
+      background: var(--orange-gradient-subtle);
+      display:flex; align-items:center; justify-content:center;
+      color: #fff; font-size: 28px;
+    }
+    .pf-primary-btn {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      width: 100%; padding: 12px 18px; border-radius: 10px;
+      background: var(--orange-gradient-subtle); color: #fff;
+      border: none; font-family: var(--f); font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: transform .15s ease, box-shadow .2s ease;
+    }
+    .pf-primary-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px var(--orange-glow); }
+    .pf-primary-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    .pf-setup-card {
+      max-width: 480px; margin: 32px auto; padding: 28px;
+      border-radius: 16px; background: var(--card); border: 1px solid var(--border);
+      box-shadow: 0 6px 24px rgba(0,0,0,.04);
+    }
+    .pf-setup-card h2 { font-size: 20px; margin-bottom: 4px; }
+    .pf-setup-card .pf-sub { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+    .pf-form-group { margin-bottom: 14px; }
+    .pf-form-group label { display:block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+    .pf-form-group input {
+      width: 100%; box-sizing: border-box; padding: 10px 12px;
+      border-radius: 8px; border: 1px solid var(--border); background: var(--bg);
+      font-family: var(--f); font-size: 14px; color: var(--text);
+    }
+    .pf-form-group input:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-glow); }
+    .pf-ghost-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 10px 16px; border-radius: 8px;
+      background: transparent; color: var(--text2); border: 1px solid var(--border);
+      font-family: var(--f); font-size: 13px; font-weight: 600; cursor: pointer;
+      margin-top: 10px;
+    }
+    .pf-ghost-btn:hover { color: var(--orange); border-color: var(--orange); }
+
+    .pf-challenge-box {
+      background: var(--orange-pale); border: 1px solid var(--orange);
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+    }
+    .pf-challenge-code { font-family: var(--mono, monospace); font-size: 16px; color: var(--orange); font-weight: 700; }
+    .pf-challenge-box ol { font-size: 13px; color: var(--text); padding-left: 20px; margin: 8px 0 0; }
+    .pf-challenge-box ol li { margin-bottom: 4px; }
+
+    .pf-loading-wrap { text-align:center; padding: 80px 20px; }
+    .pf-spinner {
+      width: 36px; height: 36px; margin: 0 auto 16px;
+      border: 3px solid var(--border); border-top-color: var(--orange);
+      border-radius: 50%; animation: pf-spin .8s linear infinite;
+    }
+    @keyframes pf-spin { to { transform: rotate(360deg); } }
+    .pf-loading-wrap p { color: var(--text2); font-size: 14px; }
+
+    .pf-main { animation: pf-fade .3s ease; }
+    @keyframes pf-fade { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform: none; } }
+
+    .pf-stat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; margin: 16px 0 22px;
+    }
+    .pf-stat-card {
+      padding: 16px 14px; border-radius: 12px;
+      background: var(--card); border: 1px solid var(--border);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .pf-stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.05); }
+    .pf-stat-value { font-size: 24px; font-weight: 800; color: var(--orange); line-height: 1.1; }
+    .pf-stat-value.muted { color: var(--text2); }
+    .pf-stat-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+
+    .pf-section-card {
+      padding: 18px 20px; border-radius: 12px;
+      background: var(--card); border: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .pf-section-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 12px; display:flex; align-items:center; gap:8px; }
+
+    .pf-game-row {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 8px; background: var(--bg);
+      margin-bottom: 6px; font-size: 13px;
+    }
+    .pf-game-row:last-child { margin-bottom: 0; }
+    .pf-game-map { font-weight: 600; color: var(--text); }
+    .pf-game-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .pf-game-result { font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 20px; }
+    .pf-game-result.win { background: rgba(80,200,120,.15); color: #2a9d4a; }
+    .pf-game-result.loss { background: rgba(220,80,80,.12); color: #c0392b; }
+    .pf-game-result.loading { background: var(--bg2); color: var(--text3); }
+    .pf-game-date { color: var(--text3); font-size: 12px; white-space: nowrap; }
+
+    .pf-error-banner {
+      padding: 12px 16px; border-radius: 10px;
+      border: 1px solid rgba(255,120,80,.45); background: rgba(255,120,80,.12);
+      color: var(--text); font-size: 13px; margin-bottom: 16px;
+    }
+    .pf-empty { padding: 18px; text-align: center; color: var(--text3); font-size: 13px; }
+
+    @media (max-width: 720px) {
+      .pf-game-row { grid-template-columns: 1fr; gap: 6px; }
+      .pf-game-date, .pf-game-result { justify-self: start; }
+    }
+  </style>
 </head>
 <body>
 <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar"></div></div>
@@ -69,7 +188,7 @@
           <div class="profile-avatar" id="sidebar-avatar">—</div>
           <div class="profile-info">
             <h4 id="user-display-name">—</h4>
-            <span>En ligne</span>
+            <span id="user-public-id-side">En ligne</span>
           </div>
           <svg class="chevron-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;color:var(--muted);flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -104,291 +223,118 @@
     <div class="topbar">
       <div>
         <h1>Mon Profil</h1>
-        <p>Suivez votre progression et vos statistiques</p>
+        <p>Suivez votre progression et vos statistiques OpenFront</p>
       </div>
       <div class="topbar-right">
         <div class="game-version" id="game-version"></div>
       </div>
     </div>
 
-    <div id="profile-loading" class="feed-card" style="padding:32px;text-align:center">
-      <div class="loading">Chargement...</div>
+    <!-- ─── View: Loading ─── -->
+    <div id="profile-loading" class="pf-view is-active">
+      <div class="pf-loading-wrap">
+        <div class="pf-spinner"></div>
+        <p>Chargement du profil…</p>
+      </div>
     </div>
 
-    <!-- Public profile viewer (when ?player=Name is in URL) -->
-    <div id="profile-public-viewer" style="display:none">
-      <div class="pf-hero" style="margin-bottom:16px">
-        <div class="pf-avatar" id="public-avatar-large"></div>
-        <div class="pf-hero-info">
-          <h1 class="pf-name" id="public-title-name">—</h1>
-          <div class="pf-hero-badges">
-            <span class="pf-badge" id="public-profile-badge">Profil public</span>
-            <span class="pf-clan-badge" id="public-clan-badge" style="display:none"></span>
+    <!-- ─── View: Gate (not logged in) ─── -->
+    <div id="profile-gate" class="pf-view">
+      <div class="pf-gate-card">
+        <div class="pf-gate-icon">👤</div>
+        <h2>Connectez-vous</h2>
+        <p>Connectez-vous pour accéder à votre profil et suivre vos statistiques OpenFront.</p>
+        <button class="pf-primary-btn" onclick="toggleAuthModal()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Connexion
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── View: Setup (new user — 2-step ownership verification) ─── -->
+    <div id="profile-setup" class="pf-view">
+      <div class="pf-setup-card">
+        <h2>Finaliser votre profil</h2>
+        <p class="pf-sub">Liez votre compte OpenFront pour afficher vos statistiques.</p>
+
+        <!-- Step 1: username + publicId -->
+        <div id="profile-setup-step1">
+          <div class="pf-form-group">
+            <label for="setup-username">Nom d'utilisateur OpenFront</label>
+            <input type="text" id="setup-username" placeholder="Ex: Skailex" autocomplete="off">
           </div>
-        </div>
-      </div>
-
-      <!-- API error banner (for public viewer) -->
-      <div id="public-api-error" class="profile-api-error" hidden></div>
-
-      <!-- Period filter -->
-      <div class="pf-period-toolbar">
-        <span class="pf-period-label">Période :</span>
-        <button class="pf-period-btn" data-days="7" onclick="setProfilePeriod(7)">7j</button>
-        <button class="pf-period-btn" data-days="30" onclick="setProfilePeriod(30)">30j</button>
-        <button class="pf-period-btn" data-days="90" onclick="setProfilePeriod(90)">90j</button>
-        <button class="pf-period-btn active" data-days="0" onclick="setProfilePeriod(0)">Tout</button>
-      </div>
-
-      <!-- Pseudos connus -->
-      <div class="pf-section pf-aliases-section" id="public-aliases" style="display:none">
-        <div class="pf-aliases-header" onclick="toggleAliases('public')">
-          <span class="pf-aliases-title">📛 <span id="public-aliases-summary">Pseudos connus</span></span>
-          <button class="pf-aliases-toggle" id="public-aliases-toggle">▸ Voir tout</button>
-        </div>
-        <div class="pf-aliases-list" id="public-aliases-list" style="display:none"></div>
-      </div>
-
-      <div class="pf-stats-row" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-wins">0</div>
-          <div class="pf-stat-lbl">Victoires</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-maps">0</div>
-          <div class="pf-stat-lbl">Cartes</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-global-rank">—</div>
-          <div class="pf-stat-lbl">Rang</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-winrate">—</div>
-          <div class="pf-stat-lbl">Winrate</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-playtime">0h</div>
-          <div class="pf-stat-lbl">Temps joué (est.)</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-favmap">—</div>
-          <div class="pf-stat-lbl">Carte Préférée</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-avgtime">—</div>
-          <div class="pf-stat-lbl">Temps moyen</div>
-        </div>
-        <div class="pf-stat">
-          <div class="pf-stat-val" id="public-stat-elopeak">—</div>
-          <div class="pf-stat-lbl">ELO Peak</div>
-        </div>
-      </div>
-      <div class="pf-section">
-        <h2 class="pf-section-title">Dernières parties Classées (1v1)</h2>
-        <div class="pf-games" id="public-ranked-games">
-          <div style="padding: 12px; color: var(--text3); text-align: center;">Aucune partie classée ou ID non fourni.</div>
-        </div>
-      </div>
-      <div class="pf-section">
-        <h2 class="pf-section-title">Dernières parties (Speedrun)</h2>
-        <div class="pf-games" id="public-recent-games">
-          <div class="loading">Chargement...</div>
-        </div>
-      </div>
-      <div class="pf-section">
-        <h2 class="pf-section-title">🎖️ Stats détaillées <span class="pf-section-hint">(cumul toutes parties)</span></h2>
-        <div id="public-bigint-stats"></div>
-      </div>
-    </div>
-
-    <div id="profile-gate" class="feed-card" style="display:none;padding:32px;text-align:center">
-      <p>Connectez-vous pour accéder à votre profil.</p>
-      <button class="profile-edit-btn" style="max-width:280px;margin:16px auto 0" onclick="toggleAuthModal()">Connexion</button>
-    </div>
-
-    <div id="profile-setup" class="feed-card" style="display:none;padding:28px;max-width:480px;margin:0 auto">
-      <h2 style="margin-bottom:8px">Finaliser votre profil</h2>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:20px">Liez votre compte OpenFront pour fusionner vos stats.</p>
-      <!-- Step 1 -->
-      <div id="profile-setup-step1">
-        <div class="form-group" style="margin-bottom:12px">
-          <label for="setup-username">Nom d'utilisateur OpenFront</label>
-          <input type="text" id="setup-username" class="search-input" style="width:100%;box-sizing:border-box">
-        </div>
-        <div class="form-group" style="margin-bottom:16px">
-          <label for="setup-public-id">Public ID OpenFront (8 caractères)</label>
-          <input type="text" id="setup-public-id" class="search-input" style="width:100%;box-sizing:border-box" placeholder="Ex: HabCsQYR" maxlength="8">
-        </div>
-        <button class="profile-edit-btn" onclick="startOwnershipVerificationProfile()">Vérifier mon compte</button>
-      </div>
-      <!-- Step 2: ownership challenge -->
-      <div id="profile-setup-step2" style="display:none">
-        <div style="background:var(--orange-pale);border:1px solid var(--orange);border-radius:8px;padding:14px;margin-bottom:14px">
-          <div style="font-weight:600;color:var(--orange);margin-bottom:6px">🔑 Code de vérification : <span id="ownership-code-pf" style="font-family:var(--mono);font-size:16px"></span></div>
-          <div style="font-size:13px;color:var(--text)">
-            Pour prouver que vous êtes bien ce joueur :
+          <div class="pf-form-group">
+            <label for="setup-public-id">Public ID OpenFront (8 caractères)</label>
+            <input type="text" id="setup-public-id" placeholder="Ex: HabCsQYR" maxlength="8" autocomplete="off">
           </div>
-          <ol style="font-size:13px;color:var(--text);padding-left:20px;margin:8px 0">
-            <li>Modifiez votre pseudo OpenFront dans les paramètres du jeu</li>
-            <li>Ajoutez le code ci-dessus à votre pseudo (ex: <strong id="ownership-example-pf"></strong>)</li>
-            <li>Jouez au moins une partie</li>
-            <li>Cliquez sur "Confirmer" ci-dessous</li>
-          </ol>
+          <button class="pf-primary-btn" onclick="startOwnershipVerification()">
+            Vérifier mon compte
+          </button>
         </div>
-        <button class="profile-edit-btn" onclick="confirmOwnershipVerificationProfile()" id="confirm-ownership-btn-pf">Confirmer</button>
-        <button class="profile-edit-btn" onclick="cancelOwnershipVerificationProfile()" style="background:transparent;color:var(--muted);margin-top:8px">Retour</button>
-      </div>
-    </div>
 
-    <div id="profile-main" style="display:none">
-    <!-- Carte identité centrée -->
-    <div class="pf-hero">
-      <div class="pf-avatar" id="profile-avatar-large"></div>
-      <div class="pf-hero-info">
-        <h1 class="pf-name" id="profile-title-name">—</h1>
-        <div class="pf-hero-badges">
-          <span class="pf-badge" id="profile-public-badge">—</span>
-          <span class="pf-clan-badge" id="profile-clan-badge" style="display:none"></span>
-        </div>
-      </div>
-      <button class="pf-edit-btn" onclick="toggleEditPanel()">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-    </div>
-
-    <!-- Formulaire d'édition (caché par défaut) -->
-    <div class="pf-edit-form" id="profile-edit-panel" style="display:none">
-      <div class="form-group" style="margin-bottom:12px">
-        <label for="edit-username">Nom d'utilisateur</label>
-        <input type="text" id="edit-username" class="search-input" style="width:100%;box-sizing:border-box">
-      </div>
-      <div class="form-group profile-locked-field" style="margin-bottom:12px">
-        <label for="edit-public-id">Public ID OpenFront</label>
-        <input type="text" id="edit-public-id" readonly disabled>
-        <p class="profile-locked-hint">Le Public ID est définitif et ne peut pas être modifié.</p>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="profile-edit-btn" style="flex:1" onclick="saveProfileEdits()">Enregistrer</button>
-        <button class="profile-edit-btn" style="flex:1;background:var(--bg2)" onclick="toggleEditPanel()">Annuler</button>
-      </div>
-    </div>
-
-    <!-- API error banner -->
-    <div id="profile-api-error" class="profile-api-error" hidden></div>
-
-<!-- Code récompense -->
-    <div class="pf-reward-section">
-      <div class="pf-reward-header">
-        <span class="pf-reward-title">🎨 Cosmétiques</span>
-      </div>
-      <div id="pf-reward-active" style="display:none">
-        <div class="pf-reward-status">
-          <div class="pf-reward-info">
-            <span>Mes cosmétiques</span>
-          </div>
-          <div class="pf-reward-toggle">
-            <span class="pf-toggle-label" id="pf-toggle-label">Activé</span>
-            <div class="toggle-switch" id="pf-reward-toggle-switch" onclick="toggleReward()">
-              <div class="toggle-knob"></div>
+        <!-- Step 2: ownership challenge -->
+        <div id="profile-setup-step2" style="display:none">
+          <div class="pf-challenge-box">
+            <div style="font-weight:600;color:var(--orange);margin-bottom:6px">
+              🔑 Code de vérification : <span id="ownership-code" class="pf-challenge-code"></span>
             </div>
+            <div style="font-size:13px;color:var(--text)">Pour prouver que vous êtes bien ce joueur :</div>
+            <ol>
+              <li>Modifiez votre pseudo OpenFront dans les paramètres du jeu</li>
+              <li>Ajoutez le code ci-dessus à votre pseudo (ex: <strong id="ownership-example"></strong>)</li>
+              <li>Jouez au moins une partie</li>
+              <li>Cliquez sur « Confirmer » ci-dessous</li>
+            </ol>
+          </div>
+          <button class="pf-primary-btn" id="confirm-ownership-btn" onclick="confirmOwnershipVerification()">
+            Confirmer
+          </button>
+          <button class="pf-ghost-btn" onclick="cancelOwnershipVerification()">Retour</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── View: Main (logged in with publicId — stats display) ─── -->
+    <div id="profile-main" class="pf-view">
+      <!-- Hero -->
+      <div class="pf-hero">
+        <div class="pf-avatar" id="profile-avatar-large">—</div>
+        <div class="pf-hero-info">
+          <h1 class="pf-name" id="profile-title-name">—</h1>
+          <div class="pf-hero-badges">
+            <span class="pf-badge" id="profile-public-badge">Public ID: —</span>
+            <span class="pf-clan-badge" id="profile-clan-badge" style="display:none"></span>
+            <span class="pf-badge" id="profile-elo-badge" style="display:none"></span>
           </div>
         </div>
-        <div id="pf-cosmetics-grid" class="pf-cosmetics-grid">
-          <!-- Rempli dynamiquement par renderRewardSection() -->
+        <button class="pf-edit-btn" onclick="handleLogout()" title="Se déconnecter">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+
+      <!-- API error banner -->
+      <div id="profile-api-error" class="pf-error-banner" style="display:none"></div>
+
+      <!-- Stats grid -->
+      <div class="pf-stat-grid" id="profile-stat-grid">
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-wins">—</div><div class="pf-stat-label">Victoires</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-total">—</div><div class="pf-stat-label">Parties jouées</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-winrate">—</div><div class="pf-stat-label">Winrate</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-maps">—</div><div class="pf-stat-label">Cartes jouées</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-favmap">—</div><div class="pf-stat-label">Carte préférée</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-last">—</div><div class="pf-stat-label">Dernière partie</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-elo">—</div><div class="pf-stat-label">ELO (1v1)</div></div>
+        <div class="pf-stat-card"><div class="pf-stat-value" id="stat-peak">—</div><div class="pf-stat-label">ELO Peak</div></div>
+      </div>
+
+      <!-- Recent games -->
+      <div class="pf-section-card">
+        <div class="pf-section-title">🕒 Dernières parties</div>
+        <div id="profile-recent-games">
+          <div class="pf-empty">Chargement…</div>
         </div>
       </div>
-      <div id="pf-reward-form">
-        <div class="pf-reward-form-label">Ajouter un code</div>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="reward-code-input" class="search-input" placeholder="OR-XXXXXX" style="flex:1;box-sizing:border-box">
-          <button class="pf-reward-btn" onclick="redeemCode()">Utiliser</button>
-        </div>
-        <div id="reward-code-msg" class="pf-reward-msg"></div>
-      </div>
     </div>
-
-    <!-- Period filter -->
-    <div class="pf-period-toolbar">
-      <span class="pf-period-label">Période :</span>
-      <button class="pf-period-btn" data-days="7" onclick="setProfilePeriod(7)">7j</button>
-      <button class="pf-period-btn" data-days="30" onclick="setProfilePeriod(30)">30j</button>
-      <button class="pf-period-btn" data-days="90" onclick="setProfilePeriod(90)">90j</button>
-      <button class="pf-period-btn active" data-days="0" onclick="setProfilePeriod(0)">Tout</button>
-    </div>
-
-    <!-- Pseudos connus -->
-    <div class="pf-section pf-aliases-section" id="profile-aliases" style="display:none">
-      <div class="pf-aliases-header" onclick="toggleAliases('profile')">
-        <span class="pf-aliases-title">📛 <span id="profile-aliases-summary">Pseudos connus</span></span>
-        <button class="pf-aliases-toggle" id="profile-aliases-toggle">▸ Voir tout</button>
-      </div>
-      <div class="pf-aliases-list" id="profile-aliases-list" style="display:none"></div>
-    </div>
-
-    <!-- Stats rapides -->
-    <div class="pf-stats-row" style="grid-template-columns: repeat(4, 1fr);">
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-wins">0</div>
-        <div class="pf-stat-lbl">Victoires</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-maps">0</div>
-        <div class="pf-stat-lbl">Cartes</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-global-rank">—</div>
-        <div class="pf-stat-lbl">Rang</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-winrate">—</div>
-        <div class="pf-stat-lbl">Winrate</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-playtime">0h</div>
-        <div class="pf-stat-lbl">Temps joué (est.)</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-favmap">—</div>
-        <div class="pf-stat-lbl">Carte Préférée</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-avgtime">—</div>
-        <div class="pf-stat-lbl">Temps moyen</div>
-      </div>
-      <div class="pf-stat">
-        <div class="pf-stat-val" id="profile-stat-elopeak">—</div>
-        <div class="pf-stat-lbl">ELO Peak</div>
-      </div>
-    </div>
-
-    <!-- Graphique mensuel -->
-    <div class="pf-section">
-      <h2 class="pf-section-title">Victoires par mois</h2>
-      <div class="pf-chart" id="chart-monthly-wins"></div>
-    </div>
-
-    <!-- Dernières parties 1v1 -->
-    <div class="pf-section">
-      <h2 class="pf-section-title">Dernières parties Classées (1v1)</h2>
-      <div class="pf-games" id="profile-ranked-games">
-        <div style="padding: 12px; color: var(--text3); text-align: center;">Chargement...</div>
-      </div>
-    </div>
-
-    <!-- 5 dernières parties -->
-    <div class="pf-section">
-      <h2 class="pf-section-title">Dernières parties (Speedrun)</h2>
-      <div class="pf-games" id="profile-recent-games">
-        <div class="loading">Chargement...</div>
-      </div>
-    </div>
-
-    <!-- Stats détaillées BigInt -->
-    <div class="pf-section">
-      <h2 class="pf-section-title">🎖️ Stats détaillées <span class="pf-section-hint">(cumul toutes parties)</span></h2>
-      <div id="profile-bigint-stats"></div>
-    </div>
-  </div>
 
   </main>
 </div>
@@ -402,8 +348,9 @@
     </div>
     <div class="modal-header">
       <div class="modal-title">Connexion</div>
+      <div class="modal-subtitle">Connectez-vous pour lier votre compte OpenFront.</div>
     </div>
-    <div class="auth-options">
+    <div class="auth-options" style="padding:0 28px">
       <button class="auth-btn google" onclick="handleLogin('google')">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-label="Google"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Continuer avec Google
@@ -413,55 +360,24 @@
         Continuer avec Discord
       </button>
     </div>
+    <p style="font-size:12px;color:var(--muted);text-align:center;padding:0 28px 24px">En vous connectant, vous acceptez les conditions d'utilisation.</p>
   </div>
 </div>
 
 <script src="i18n.js"></script>
-<script src="auth.js"></script>
-<script src="toast.js"></script>
+<script src="toast.js" defer></script>
 <script src="animations.js" defer></script>
+<script src="profile.js?v=20" type="module"></script>
 <script>
-// Lazy-load cosmetic fonts only when cosmetics section is visible
-(function(){
-  function loadCosmeticFonts(){
-    if(document.getElementById('cosmetic-fonts-loaded'))return;
-    var link=document.createElement('link');
-    link.id='cosmetic-fonts-loaded';
-    link.rel='stylesheet';
-    link.href='https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Creepster&family=Montserrat:wght@900&family=Orbitron:wght@900&family=Permanent+Marker&family=Rubik+Glitch&family=Rubik+Mono+One&family=Speedy&display=swap';
-    document.head.appendChild(link);
-  }
-  var obs=new MutationObserver(function(mutations){
-    mutations.forEach(function(m){
-      m.addedNodes.forEach(function(n){
-        if(n.id==='pf-cosmetics-grid'||(n.querySelector&&n.querySelector('#pf-cosmetics-grid'))){
-          loadCosmeticFonts();obs.disconnect();
-        }
-      });
-    });
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
-  setTimeout(loadCosmeticFonts,3000);
-})();
-</script>
-<script src="profile.js" type="module"></script>
-<script>
-/* L6: Fallback timeout (inline, independent of profile.js module loading).
-   If profile.js fails to load (e.g. Firebase CDN blocked) or onAuthStateChanged
-   never fires, show profile-gate or public viewer instead of "loading" forever. */
+/* Fallback timeout: if profile.js fails to load (e.g. Firebase CDN blocked)
+   or onAuthStateChanged never fires, show the gate instead of "loading" forever. */
 setTimeout(function() {
   var loading = document.getElementById('profile-loading');
-  if (loading && getComputedStyle(loading).display !== 'none') {
-    console.warn('[profile] Auth state timeout (inline) — showing gate.');
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('player')) {
-      // Public profile viewer will be handled by profile.js if it loads later
-      var gate = document.getElementById('profile-gate');
-      if (gate) { loading.style.display = 'none'; gate.style.display = 'block'; }
-    } else {
-      var gate = document.getElementById('profile-gate');
-      if (gate) { loading.style.display = 'none'; gate.style.display = 'block'; }
-    }
+  if (loading && loading.classList.contains('is-active')) {
+    console.warn('[profile] Auth state timeout (inline fallback) — showing gate.');
+    loading.classList.remove('is-active');
+    var gate = document.getElementById('profile-gate');
+    if (gate) gate.classList.add('is-active');
   }
 }, 6000);
 </script>
